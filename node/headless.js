@@ -289,29 +289,29 @@ var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 //     }
 // }
 
-function recordKeyboardEvent(key, timestamp, display, eventQueue) {
-    if (!display.vm) return;
-    var code = (display.buttons >> 3) << 8 | key;
-    if (code === display.vm.interruptKeycode) {
-        display.vm.interruptPending = true;
-    } else if (eventQueue) {
-        eventQueue.push([
-            Squeak.EventTypeKeyboard,
-            timestamp,  // converted to Squeak time in makeSqueakEvent()
-            key, // MacRoman
-            Squeak.EventKeyChar,
-            display.buttons >> 3,
-            key,  // Unicode
-        ]);
-        if (display.signalInputEvent)
-            display.signalInputEvent();
-    } else {
-        // no event queue, queue keys the old-fashioned way
-        display.keys.push(code);
-    }
-    display.idle = 0;
-    if (display.runNow) display.runNow(); // don't wait for timeout to run
-}
+// function recordKeyboardEvent(key, timestamp, display, eventQueue) {
+//     if (!display.vm) return;
+//     var code = (display.buttons >> 3) << 8 | key;
+//     if (code === display.vm.interruptKeycode) {
+//         display.vm.interruptPending = true;
+//     } else if (eventQueue) {
+//         eventQueue.push([
+//             Squeak.EventTypeKeyboard,
+//             timestamp,  // converted to Squeak time in makeSqueakEvent()
+//             key, // MacRoman
+//             Squeak.EventKeyChar,
+//             display.buttons >> 3,
+//             key,  // Unicode
+//         ]);
+//         if (display.signalInputEvent)
+//             display.signalInputEvent();
+//     } else {
+//         // no event queue, queue keys the old-fashioned way
+//         display.keys.push(code);
+//     }
+//     display.idle = 0;
+//     if (display.runNow) display.runNow(); // don't wait for timeout to run
+// }
 
 function recordDragDropEvent(type, evt, canvas, display, eventQueue) {
     if (!display.vm || !eventQueue) return;
