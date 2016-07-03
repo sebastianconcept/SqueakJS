@@ -1,5 +1,8 @@
 'use strict';
 
+// not sure how muchly needed this actually is
+
+
 SqueakJS.runHeadless = function(buffer, name, options) {
     var display = {
       quitFlag: false

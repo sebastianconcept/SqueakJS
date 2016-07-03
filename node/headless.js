@@ -27,6 +27,8 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
+var Squeak = require('./vm');
+
 // sounds like it doesn't need to be really global, we'll see...
 global.sqModule = function(dottedPath) {
     if (dottedPath === '') return window;
@@ -90,6 +92,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
 //////////////////////////////////////////////////////////////////////////////
 
 (function(){
+    console.log('scripts loader ...');
     var scripts = document.getElementsByTagName("script"),
         squeakjs = scripts[scripts.length - 1],
         vmDir = squeakjs.src.replace(/[^\/]*$/, "");
