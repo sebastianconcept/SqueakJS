@@ -337,12 +337,12 @@ try {
 //     recordKeyboardEvent(key, timestamp, display, eventQueue);
 // }
 
-function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
-    sqEvtBuf[0] = evt[0];
-    sqEvtBuf[1] = (evt[1] - sqTimeOffset) & Squeak.MillisecondClockMask;
-    for (var i = 2; i < evt.length; i++)
-        sqEvtBuf[i] = evt[i];
-}
+// function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
+//     sqEvtBuf[0] = evt[0];
+//     sqEvtBuf[1] = (evt[1] - sqTimeOffset) & Squeak.MillisecondClockMask;
+//     for (var i = 2; i < evt.length; i++)
+//         sqEvtBuf[i] = evt[i];
+// }
 
 // function createSqueakDisplay(canvas, options) {
 //     options = options || {};
