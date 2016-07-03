@@ -329,13 +329,13 @@ var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 //         display.signalInputEvent();
 // }
 
-function fakeCmdOrCtrlKey(key, timestamp, display, eventQueue) {
-    // set both Cmd and Ctrl bit, because we don't know what the image wants
-    display.buttons &= ~Squeak.Keyboard_All;  // remove all modifiers
-    display.buttons |= Squeak.Keyboard_Cmd | Squeak.Keyboard_Ctrl;
-    display.keys = []; //  flush other keys
-    recordKeyboardEvent(key, timestamp, display, eventQueue);
-}
+// function fakeCmdOrCtrlKey(key, timestamp, display, eventQueue) {
+//     // set both Cmd and Ctrl bit, because we don't know what the image wants
+//     display.buttons &= ~Squeak.Keyboard_All;  // remove all modifiers
+//     display.buttons |= Squeak.Keyboard_Cmd | Squeak.Keyboard_Ctrl;
+//     display.keys = []; //  flush other keys
+//     recordKeyboardEvent(key, timestamp, display, eventQueue);
+// }
 
 function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
     sqEvtBuf[0] = evt[0];
