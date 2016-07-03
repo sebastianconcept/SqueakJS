@@ -1,18 +1,14 @@
 'use strict';
 
 SqueakJS.runHeadless = function(buffer, name, options) {
-    window.onbeforeunload = function(evt) {
-        var msg = SqueakJS.appName + " is still running";
-        evt.returnValue = msg;
-        return msg;
-    };
-    window.clearTimeout(loop);
+
+    global.clearTimeout(loop);
     display.reset();
     display.clear();
     display.showBanner("Loading " + SqueakJS.appName);
     display.showProgress(0);
     var self = this;
-    window.setTimeout(function() {
+    global.setTimeout(function() {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function() {
             display.quitFlag = false;
@@ -29,7 +25,7 @@ SqueakJS.runHeadless = function(buffer, name, options) {
                     else vm.interpret(50, function(ms) {
                         if (ms == "sleep") ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
-                        loop = window.setTimeout(run, ms);
+                        loop = global.setTimeout(run, ms);
                     });
                 } catch(error) {
                     console.error(error);
@@ -37,7 +33,7 @@ SqueakJS.runHeadless = function(buffer, name, options) {
                 }
             }
             display.runNow = function() {
-                window.clearTimeout(loop);
+                global.clearTimeout(loop);
                 run();
             };
             display.runFor = function(milliseconds) {
