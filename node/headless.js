@@ -247,47 +247,47 @@ var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 //     display.mouseY = Math.max(0, Math.min(display.height, y));
 // }
 
-function recordMouseEvent(what, evt, canvas, display, eventQueue, options) {
-    updateMousePos(evt, canvas, display);
-    if (!display.vm) return;
-    var buttons = display.buttons & Squeak.Mouse_All;
-    switch (what) {
-        case 'mousedown':
-            switch (evt.button || 0) {
-                case 0: buttons = Squeak.Mouse_Red; break;      // left
-                case 1: buttons = Squeak.Mouse_Yellow; break;   // middle
-                case 2: buttons = Squeak.Mouse_Blue; break;     // right
-            }
-            if (options.swapButtons)
-                if (buttons == Squeak.Mouse_Yellow) buttons = Squeak.Mouse_Blue;
-                else if (buttons == Squeak.Mouse_Blue) buttons = Squeak.Mouse_Yellow;
-            break;
-        case 'mousemove':
-            break; // nothing more to do
-        case 'mouseup':
-            buttons = 0;
-            break;
-    }
-    display.buttons = buttons | recordModifiers(evt, display);
-    if (eventQueue) {
-        eventQueue.push([
-            Squeak.EventTypeMouse,
-            evt.timeStamp,  // converted to Squeak time in makeSqueakEvent()
-            display.mouseX,
-            display.mouseY,
-            display.buttons & Squeak.Mouse_All,
-            display.buttons >> 3,
-        ]);
-        if (display.signalInputEvent)
-            display.signalInputEvent();
-    }
-    display.idle = 0;
-    if (what == 'mouseup') {
-        if (display.runFor) display.runFor(100); // maybe we catch the fullscreen flag change
-    } else {
-        if (display.runNow) display.runNow();   // don't wait for timeout to run
-    }
-}
+// function recordMouseEvent(what, evt, canvas, display, eventQueue, options) {
+//     updateMousePos(evt, canvas, display);
+//     if (!display.vm) return;
+//     var buttons = display.buttons & Squeak.Mouse_All;
+//     switch (what) {
+//         case 'mousedown':
+//             switch (evt.button || 0) {
+//                 case 0: buttons = Squeak.Mouse_Red; break;      // left
+//                 case 1: buttons = Squeak.Mouse_Yellow; break;   // middle
+//                 case 2: buttons = Squeak.Mouse_Blue; break;     // right
+//             }
+//             if (options.swapButtons)
+//                 if (buttons == Squeak.Mouse_Yellow) buttons = Squeak.Mouse_Blue;
+//                 else if (buttons == Squeak.Mouse_Blue) buttons = Squeak.Mouse_Yellow;
+//             break;
+//         case 'mousemove':
+//             break; // nothing more to do
+//         case 'mouseup':
+//             buttons = 0;
+//             break;
+//     }
+//     display.buttons = buttons | recordModifiers(evt, display);
+//     if (eventQueue) {
+//         eventQueue.push([
+//             Squeak.EventTypeMouse,
+//             evt.timeStamp,  // converted to Squeak time in makeSqueakEvent()
+//             display.mouseX,
+//             display.mouseY,
+//             display.buttons & Squeak.Mouse_All,
+//             display.buttons >> 3,
+//         ]);
+//         if (display.signalInputEvent)
+//             display.signalInputEvent();
+//     }
+//     display.idle = 0;
+//     if (what == 'mouseup') {
+//         if (display.runFor) display.runFor(100); // maybe we catch the fullscreen flag change
+//     } else {
+//         if (display.runNow) display.runNow();   // don't wait for timeout to run
+//     }
+// }
 
 function recordKeyboardEvent(key, timestamp, display, eventQueue) {
     if (!display.vm) return;
