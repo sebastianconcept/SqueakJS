@@ -313,21 +313,21 @@ var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 //     if (display.runNow) display.runNow(); // don't wait for timeout to run
 // }
 
-function recordDragDropEvent(type, evt, canvas, display, eventQueue) {
-    if (!display.vm || !eventQueue) return;
-    updateMousePos(evt, canvas, display);
-    eventQueue.push([
-        Squeak.EventTypeDragDropFiles,
-        evt.timeStamp,  // converted to Squeak time in makeSqueakEvent()
-        type,
-        display.mouseX,
-        display.mouseY,
-        display.buttons >> 3,
-        display.droppedFiles.length,
-    ]);
-    if (display.signalInputEvent)
-        display.signalInputEvent();
-}
+// function recordDragDropEvent(type, evt, canvas, display, eventQueue) {
+//     if (!display.vm || !eventQueue) return;
+//     updateMousePos(evt, canvas, display);
+//     eventQueue.push([
+//         Squeak.EventTypeDragDropFiles,
+//         evt.timeStamp,  // converted to Squeak time in makeSqueakEvent()
+//         type,
+//         display.mouseX,
+//         display.mouseY,
+//         display.buttons >> 3,
+//         display.droppedFiles.length,
+//     ]);
+//     if (display.signalInputEvent)
+//         display.signalInputEvent();
+// }
 
 function fakeCmdOrCtrlKey(key, timestamp, display, eventQueue) {
     // set both Cmd and Ctrl bit, because we don't know what the image wants
