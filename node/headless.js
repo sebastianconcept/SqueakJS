@@ -207,19 +207,19 @@ try {
 //     return checkFullscreen;
 // }
 
-function setupSwapButtons(options) {
-    if (options.swapCheckbox) {
-        var imageName = localStorage["squeakImageName"] || "default",
-            settings = JSON.parse(localStorage["squeakSettings:" + imageName] || "{}");
-        if ("swapButtons" in settings) options.swapButtons = settings.swapButtons;
-        options.swapCheckbox.checked = options.swapButtons;
-        options.swapCheckbox.onclick = function() {
-            options.swapButtons = options.swapCheckbox.checked;
-            settings["swapButtons"] = options.swapButtons;
-            localStorage["squeakSettings:" + imageName] = JSON.stringify(settings);
-        };
-    }
-}
+// function setupSwapButtons(options) {
+//     if (options.swapCheckbox) {
+//         var imageName = localStorage["squeakImageName"] || "default",
+//             settings = JSON.parse(localStorage["squeakSettings:" + imageName] || "{}");
+//         if ("swapButtons" in settings) options.swapButtons = settings.swapButtons;
+//         options.swapCheckbox.checked = options.swapButtons;
+//         options.swapCheckbox.onclick = function() {
+//             options.swapButtons = options.swapCheckbox.checked;
+//             settings["swapButtons"] = options.swapButtons;
+//             localStorage["squeakSettings:" + imageName] = JSON.stringify(settings);
+//         };
+//     }
+// }
 
 function recordModifiers(evt, display) {
     var shiftPressed = evt.shiftKey,
