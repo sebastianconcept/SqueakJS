@@ -27,34 +27,34 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
-// window.module = function(dottedPath) {
-//     if (dottedPath === "") return window;
-//     var path = dottedPath.split("."),
-//         name = path.pop(),
-//         parent = module(path.join(".")),
-//         self = parent[name];
-//     if (!self) parent[name] = self = {
-//         loaded: false,
-//         pending: [],
-//         requires: function(req) {
-//             return {
-//                 toRun: function(code) {
-//                     function load() {
-//                         code();
-//                         self.loaded = true;
-//                         self.pending.forEach(function(f){f();});
-//                     }
-//                     if (req && !module(req).loaded) {
-//                         module(req).pending.push(load);
-//                     } else {
-//                         load();
-//                     }
-//                 }
-//             };
-//         },
-//     };
-//     return self;
-// };
+global.sqModule = function(dottedPath) {
+    if (dottedPath === "") return window;
+    var path = dottedPath.split("."),
+        name = path.pop(),
+        parent = sqModule(path.join(".")),
+        self = parent[name];
+    if (!self) parent[name] = self = {
+        loaded: false,
+        pending: [],
+        requires: function(req) {
+            return {
+                toRun: function(code) {
+                    function load() {
+                        code();
+                        self.loaded = true;
+                        self.pending.forEach(function(f){f();});
+                    }
+                    if (req && !sqModule(req).loaded) {
+                        sqModule(req).pending.push(load);
+                    } else {
+                        load();
+                    }
+                }
+            };
+        },
+    };
+    return self;
+};
 
 Object.extend = function(obj /* + more args */ ) {
     // skip arg 0, copy properties of other args to obj
@@ -80,7 +80,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
     // add class to module
     var modulePath = classPath.split("."),
         className = modulePath.pop();
-    module(modulePath.join('.'))[className] = subclass;
+    sqModule(modulePath.join('.'))[className] = subclass;
     return subclass;
 };
 
@@ -123,7 +123,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
     });
 })();
 
-module("SqueakJS").requires("users.bert.SqueakJS.vm").toRun(function() {
+sqModule("SqueakJS").requires("users.bert.SqueakJS.vm").toRun(function() {
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;
