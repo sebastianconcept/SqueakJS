@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 
-"use strict";
+'use strict';
 
 //////////////////////////////////////////////////////////////////////////////
 // these functions fake the Lively module and class system
@@ -28,10 +28,10 @@
 //////////////////////////////////////////////////////////////////////////////
 
 global.sqModule = function(dottedPath) {
-    if (dottedPath === "") return window;
-    var path = dottedPath.split("."),
+    if (dottedPath === '') return window;
+    var path = dottedPath.split('.'),
         name = path.pop(),
-        parent = sqModule(path.join(".")),
+        parent = sqModule(path.join('.')),
         self = parent[name];
     if (!self) parent[name] = self = {
         loaded: false,
@@ -78,7 +78,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
     for (var i = 1; i < arguments.length; i++)
         Object.extend(subclass.prototype, arguments[i]);
     // add class to module
-    var modulePath = classPath.split("."),
+    var modulePath = classPath.split('.'),
         className = modulePath.pop();
     sqModule(modulePath.join('.'))[className] = subclass;
     return subclass;
@@ -123,16 +123,16 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
     });
 })();
 
-sqModule("SqueakJS").requires("users.bert.SqueakJS.vm").toRun(function() {
+sqModule('SqueakJS').requires('users.bert.SqueakJS.vm').toRun(function() {
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;
 var localStorage = new LocalStorage('./localStorage');
 
 try {
-  localStorage["squeak-foo:"] = "bar";
-  if (localStorage["squeak-foo:"] !== "bar") throw Error();
-  delete localStorage["squeak-foo:"];
+  localStorage['squeak-foo:'] = 'bar';
+  if (localStorage['squeak-foo:'] !== 'bar') throw Error();
+  delete localStorage['squeak-foo:'];
 } catch(e) {
   localStorage = {};
 }
@@ -918,7 +918,7 @@ var loop; // holds timeout for main loop
 
 SqueakJS.runImage = function(buffer, name, display, options) {
     window.onbeforeunload = function(evt) {
-        var msg = SqueakJS.appName + " is still running";
+        var msg = SqueakJS.appName + ' is still running';
         evt.returnValue = msg;
         return msg;
     };
@@ -934,7 +934,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
             display.quitFlag = false;
             var vm = new Squeak.Interpreter(image, display);
             SqueakJS.vm = vm;
-            localStorage["squeakImageName"] = name;
+            localStorage['squeakImageName'] = name;
             setupSwapButtons(options);
             display.clear();
             display.showBanner("Starting " + SqueakJS.appName);
@@ -943,7 +943,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
                 try {
                     if (display.quitFlag) self.onQuit(vm, display, options);
                     else vm.interpret(50, function(ms) {
-                        if (ms == "sleep") ms = 200;
+                        if (ms ==  'sleep') ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
                         loop = window.setTimeout(run, ms);
                     });
@@ -1005,7 +1005,7 @@ function fetchTemplates(options) {
     }
 }
 
-SqueakJS.runSqueak = function(imageUrl, canvas, options) {
+global.SqueakJS.runSqueak = function(imageUrl, canvas, options) {
     // processOptions(options);
     if (options.image) imageUrl = options.image;
     else options.image = imageUrl;
