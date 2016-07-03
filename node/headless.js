@@ -891,24 +891,24 @@ function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
 //     return spinner.style;
 // }
 
-var spinnerAngle = 0,
-    becameBusy = 0;
-function updateSpinner(spinner, idleMS, vm, display) {
-    var busy = idleMS === 0,
-        animating = vm.lastTick - display.lastTick < 500;
-    if (!busy || animating) {
-        spinner.display = "none";
-        becameBusy = 0;
-    } else {
-        if (becameBusy === 0) {
-            becameBusy = vm.lastTick;
-        } else if (vm.lastTick - becameBusy > 1000) {
-            spinner.display = "block";
-            spinnerAngle = (spinnerAngle + 30) % 360;
-            spinner.webkitTransform = spinner.transform = "rotate(" + spinnerAngle + "deg)";
-        }
-    }
-}
+// var spinnerAngle = 0,
+//     becameBusy = 0;
+// function updateSpinner(spinner, idleMS, vm, display) {
+//     var busy = idleMS === 0,
+//         animating = vm.lastTick - display.lastTick < 500;
+//     if (!busy || animating) {
+//         spinner.display = "none";
+//         becameBusy = 0;
+//     } else {
+//         if (becameBusy === 0) {
+//             becameBusy = vm.lastTick;
+//         } else if (vm.lastTick - becameBusy > 1000) {
+//             spinner.display = "block";
+//             spinnerAngle = (spinnerAngle + 30) % 360;
+//             spinner.webkitTransform = spinner.transform = "rotate(" + spinnerAngle + "deg)";
+//         }
+//     }
+// }
 
 //////////////////////////////////////////////////////////////////////////////
 // main loop
