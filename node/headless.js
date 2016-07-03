@@ -221,19 +221,19 @@ try {
 //     }
 // }
 
-function recordModifiers(evt, display) {
-    var shiftPressed = evt.shiftKey,
-        ctrlPressed = evt.ctrlKey && !evt.altKey,
-        cmdPressed = evt.metaKey || (evt.altKey && !evt.ctrlKey),
-        modifiers =
-            (shiftPressed ? Squeak.Keyboard_Shift : 0) +
-            (ctrlPressed ? Squeak.Keyboard_Ctrl : 0) +
-            (cmdPressed ? Squeak.Keyboard_Cmd : 0);
-    display.buttons = (display.buttons & ~Squeak.Keyboard_All) | modifiers;
-    return modifiers;
-}
+// function recordModifiers(evt, display) {
+//     var shiftPressed = evt.shiftKey,
+//         ctrlPressed = evt.ctrlKey && !evt.altKey,
+//         cmdPressed = evt.metaKey || (evt.altKey && !evt.ctrlKey),
+//         modifiers =
+//             (shiftPressed ? Squeak.Keyboard_Shift : 0) +
+//             (ctrlPressed ? Squeak.Keyboard_Ctrl : 0) +
+//             (cmdPressed ? Squeak.Keyboard_Cmd : 0);
+//     display.buttons = (display.buttons & ~Squeak.Keyboard_All) | modifiers;
+//     return modifiers;
+// }
 
-var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
+// var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 
 // function updateMousePos(evt, canvas, display) {
 //     var evtX = canUseMouseOffset ? evt.offsetX : evt.layerX,
