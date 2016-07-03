@@ -1,12 +1,14 @@
 'use strict';
 
 SqueakJS.runHeadless = function(buffer, name, options) {
-
+    var display = {
+      quitFlag: false
+    }; // dummy object that will actually do nothing (until can be stopped to be used)
     global.clearTimeout(loop);
-    display.reset();
-    display.clear();
-    display.showBanner("Loading " + SqueakJS.appName);
-    display.showProgress(0);
+    // display.reset();
+    // display.clear();
+    // display.showBanner("Loading " + SqueakJS.appName);
+    // display.showProgress(0);
     var self = this;
     global.setTimeout(function() {
         var image = new Squeak.Image(name);
@@ -14,16 +16,16 @@ SqueakJS.runHeadless = function(buffer, name, options) {
             display.quitFlag = false;
             var vm = new Squeak.Interpreter(image, display);
             SqueakJS.vm = vm;
-            localStorage["squeakImageName"] = name;
-            setupSwapButtons(options);
-            display.clear();
-            display.showBanner("Starting " + SqueakJS.appName);
-            var spinner = setupSpinner(vm, options);
+            // localStorage['squeakImageName'] = name;
+            // setupSwapButtons(options);
+            // display.clear();
+            // display.showBanner("Starting " + SqueakJS.appName);
+            // var spinner = setupSpinner(vm, options);
             function run() {
                 try {
                     if (display.quitFlag) self.onQuit(vm, display, options);
                     else vm.interpret(50, function(ms) {
-                        if (ms == "sleep") ms = 200;
+                        if (ms == 'sleep') ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
                         loop = global.setTimeout(run, ms);
                     });
