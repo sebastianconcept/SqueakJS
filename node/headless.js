@@ -141,71 +141,71 @@ try {
 // display & event setup
 //////////////////////////////////////////////////////////////////////////////
 
-function setupFullscreen(display, canvas, options) {
-    // Fullscreen can only be enabled in an event handler. So we check the
-    // fullscreen flag on every mouse down/up and keyboard event.
-    var box = canvas.parentElement,
-        fullscreenEvent = "fullscreenchange",
-        fullscreenElement = "fullscreenElement",
-        fullscreenEnabled = "fullscreenEnabled";
+// function setupFullscreen(display, canvas, options) {
+//     // Fullscreen can only be enabled in an event handler. So we check the
+//     // fullscreen flag on every mouse down/up and keyboard event.
+//     var box = canvas.parentElement,
+//         fullscreenEvent = "fullscreenchange",
+//         fullscreenElement = "fullscreenElement",
+//         fullscreenEnabled = "fullscreenEnabled";
 
-    if (!box.requestFullscreen) {
-        [    // Fullscreen support is still very browser-dependent
-            {req: box.webkitRequestFullscreen, exit: document.webkitExitFullscreen,
-                evt: "webkitfullscreenchange", elem: "webkitFullscreenElement", enable: "webkitFullscreenEnabled"},
-            {req: box.mozRequestFullScreen, exit: document.mozCancelFullScreen,
-                evt: "mozfullscreenchange", elem: "mozFullScreenElement", enable: "mozFullScreenEnabled"},
-            {req: box.msRequestFullscreen, exit: document.msExitFullscreen,
-                evt: "MSFullscreenChange", elem: "msFullscreenElement", enable: "msFullscreenEnabled"},
-        ].forEach(function(browser) {
-            if (browser.req) {
-                box.requestFullscreen = browser.req;
-                document.exitFullscreen = browser.exit;
-                fullscreenEvent = browser.evt;
-                fullscreenElement = browser.elem;
-                fullscreenEnabled = browser.enable;
-            }
-        });
-    }
+//     if (!box.requestFullscreen) {
+//         [    // Fullscreen support is still very browser-dependent
+//             {req: box.webkitRequestFullscreen, exit: document.webkitExitFullscreen,
+//                 evt: "webkitfullscreenchange", elem: "webkitFullscreenElement", enable: "webkitFullscreenEnabled"},
+//             {req: box.mozRequestFullScreen, exit: document.mozCancelFullScreen,
+//                 evt: "mozfullscreenchange", elem: "mozFullScreenElement", enable: "mozFullScreenEnabled"},
+//             {req: box.msRequestFullscreen, exit: document.msExitFullscreen,
+//                 evt: "MSFullscreenChange", elem: "msFullscreenElement", enable: "msFullscreenEnabled"},
+//         ].forEach(function(browser) {
+//             if (browser.req) {
+//                 box.requestFullscreen = browser.req;
+//                 document.exitFullscreen = browser.exit;
+//                 fullscreenEvent = browser.evt;
+//                 fullscreenElement = browser.elem;
+//                 fullscreenEnabled = browser.enable;
+//             }
+//         });
+//     }
 
-    // If the user canceled fullscreen, turn off the fullscreen flag so
-    // we don't try to enable it again in the next event
-    function fullscreenChange(fullscreen) {
-        display.fullscreen = fullscreen;
-        box.style.background = fullscreen ? 'black' : '';
-        if (options.header) options.header.style.display = fullscreen ? 'none' : '';
-        if (options.footer) options.footer.style.display = fullscreen ? 'none' : '';
-        if (options.fullscreenCheckbox) options.fullscreenCheckbox.checked = fullscreen;
-        setTimeout(window.onresize, 0);
-    }
+//     // If the user canceled fullscreen, turn off the fullscreen flag so
+//     // we don't try to enable it again in the next event
+//     function fullscreenChange(fullscreen) {
+//         display.fullscreen = fullscreen;
+//         box.style.background = fullscreen ? 'black' : '';
+//         if (options.header) options.header.style.display = fullscreen ? 'none' : '';
+//         if (options.footer) options.footer.style.display = fullscreen ? 'none' : '';
+//         if (options.fullscreenCheckbox) options.fullscreenCheckbox.checked = fullscreen;
+//         setTimeout(window.onresize, 0);
+//     }
 
-    var checkFullscreen;
+//     var checkFullscreen;
 
-    if (box.requestFullscreen) {
-        document.addEventListener(fullscreenEvent, function(){fullscreenChange(box == document[fullscreenElement]);});
-        checkFullscreen = function() {
-            if (document[fullscreenEnabled] && (box == document[fullscreenElement]) != display.fullscreen) {
-                if (display.fullscreen) box.requestFullscreen();
-                else document.exitFullscreen();
-            }
-        };
-    } else {
-        var isFullscreen = false;
-        checkFullscreen = function() {
-            if ((options.header || options.footer) && isFullscreen != display.fullscreen) {
-                isFullscreen = display.fullscreen;
-                fullscreenChange(isFullscreen);
-            }
-        };
-    }
+//     if (box.requestFullscreen) {
+//         document.addEventListener(fullscreenEvent, function(){fullscreenChange(box == document[fullscreenElement]);});
+//         checkFullscreen = function() {
+//             if (document[fullscreenEnabled] && (box == document[fullscreenElement]) != display.fullscreen) {
+//                 if (display.fullscreen) box.requestFullscreen();
+//                 else document.exitFullscreen();
+//             }
+//         };
+//     } else {
+//         var isFullscreen = false;
+//         checkFullscreen = function() {
+//             if ((options.header || options.footer) && isFullscreen != display.fullscreen) {
+//                 isFullscreen = display.fullscreen;
+//                 fullscreenChange(isFullscreen);
+//             }
+//         };
+//     }
 
-    if (options.fullscreenCheckbox) options.fullscreenCheckbox.onclick = function() {
-        display.fullscreen = options.fullscreenCheckbox.checked;
-        checkFullscreen();
-    };
+//     if (options.fullscreenCheckbox) options.fullscreenCheckbox.onclick = function() {
+//         display.fullscreen = options.fullscreenCheckbox.checked;
+//         checkFullscreen();
+//     };
 
-    return checkFullscreen;
-}
+//     return checkFullscreen;
+// }
 
 function setupSwapButtons(options) {
     if (options.swapCheckbox) {
