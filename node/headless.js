@@ -27,6 +27,7 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
+// sounds like it doesn't need to be really global, we'll see...
 global.sqModule = function(dottedPath) {
     if (dottedPath === '') return window;
     var path = dottedPath.split('.'),
@@ -1100,13 +1101,13 @@ SqueakJS.onQuit = function(vm, display, options) {
 // browser stuff
 //////////////////////////////////////////////////////////////////////////////
 
-if (window.applicationCache) {
-    applicationCache.addEventListener('updateready', function() {
-        // use original appName from options
-        var appName = window.SqueakJS && SqueakJS.options && SqueakJS.options.appName || "SqueakJS";
-        if (confirm(appName + ' has been updated. Restart now?')) {
-            window.onbeforeunload = null;
-            window.location.reload();
-        }
-    });
-}
+// if (window.applicationCache) {
+//     applicationCache.addEventListener('updateready', function() {
+//         // use original appName from options
+//         var appName = window.SqueakJS && SqueakJS.options && SqueakJS.options.appName || "SqueakJS";
+//         if (confirm(appName + ' has been updated. Restart now?')) {
+//             window.onbeforeunload = null;
+//             window.location.reload();
+//         }
+//     });
+// }
