@@ -344,542 +344,542 @@ function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
         sqEvtBuf[i] = evt[i];
 }
 
-function createSqueakDisplay(canvas, options) {
-    options = options || {};
-    if (options.fullscreen) {
-        document.body.style.margin = 0;
-        document.body.style.backgroundColor = 'black';
-        document.ontouchmove = function(evt) { evt.preventDefault(); };
-        if (options.header) options.header.style.display = 'none';
-        if (options.footer) options.footer.style.display = 'none';
-    }
-    var display = {
-        context: canvas.getContext("2d"),
-        fullscreen: false,
-        width: 0,   // if 0, VM uses canvas.width
-        height: 0,  // if 0, VM uses canvas.height
-        mouseX: 0,
-        mouseY: 0,
-        buttons: 0,
-        keys: [],
-        clipboardString: '',
-        clipboardStringChanged: false,
-        cursorCanvas: document.createElement("canvas"),
-        cursorOffsetX: 0,
-        cursorOffsetY: 0,
-        droppedFiles: [],
-        signalInputEvent: null, // function set by VM
-        // additional functions added below
-    };
-    setupSwapButtons(options);
-    if (options.pixelated) {
-        canvas.classList.add("pixelated");
-        display.cursorCanvas.classList.add("pixelated");
-    }
+// function createSqueakDisplay(canvas, options) {
+//     options = options || {};
+//     if (options.fullscreen) {
+//         document.body.style.margin = 0;
+//         document.body.style.backgroundColor = 'black';
+//         document.ontouchmove = function(evt) { evt.preventDefault(); };
+//         if (options.header) options.header.style.display = 'none';
+//         if (options.footer) options.footer.style.display = 'none';
+//     }
+//     var display = {
+//         context: canvas.getContext("2d"),
+//         fullscreen: false,
+//         width: 0,   // if 0, VM uses canvas.width
+//         height: 0,  // if 0, VM uses canvas.height
+//         mouseX: 0,
+//         mouseY: 0,
+//         buttons: 0,
+//         keys: [],
+//         clipboardString: '',
+//         clipboardStringChanged: false,
+//         cursorCanvas: document.createElement("canvas"),
+//         cursorOffsetX: 0,
+//         cursorOffsetY: 0,
+//         droppedFiles: [],
+//         signalInputEvent: null, // function set by VM
+//         // additional functions added below
+//     };
+//     setupSwapButtons(options);
+//     if (options.pixelated) {
+//         canvas.classList.add("pixelated");
+//         display.cursorCanvas.classList.add("pixelated");
+//     }
 
-    var eventQueue = null;
-    display.reset = function() {
-        eventQueue = null;
-        display.signalInputEvent = null;
-        display.lastTick = 0;
-        display.getNextEvent = function(firstEvtBuf, firstOffset) {
-            // might be called from VM to get queued event
-            eventQueue = []; // create queue on first call
-            eventQueue.push = function(evt) {
-                eventQueue.offset = Date.now() - evt[1]; // get epoch from first event
-                delete eventQueue.push;                  // use original push from now on
-                eventQueue.push(evt);
-            };
-            display.getNextEvent = function(evtBuf, timeOffset) {
-                var evt = eventQueue.shift();
-                if (evt) makeSqueakEvent(evt, evtBuf, timeOffset - eventQueue.offset);
-                else evtBuf[0] = Squeak.EventTypeNone;
-            };
-            display.getNextEvent(firstEvtBuf, firstOffset);
-        };
-    };
-    display.reset();
+//     var eventQueue = null;
+//     display.reset = function() {
+//         eventQueue = null;
+//         display.signalInputEvent = null;
+//         display.lastTick = 0;
+//         display.getNextEvent = function(firstEvtBuf, firstOffset) {
+//             // might be called from VM to get queued event
+//             eventQueue = []; // create queue on first call
+//             eventQueue.push = function(evt) {
+//                 eventQueue.offset = Date.now() - evt[1]; // get epoch from first event
+//                 delete eventQueue.push;                  // use original push from now on
+//                 eventQueue.push(evt);
+//             };
+//             display.getNextEvent = function(evtBuf, timeOffset) {
+//                 var evt = eventQueue.shift();
+//                 if (evt) makeSqueakEvent(evt, evtBuf, timeOffset - eventQueue.offset);
+//                 else evtBuf[0] = Squeak.EventTypeNone;
+//             };
+//             display.getNextEvent(firstEvtBuf, firstOffset);
+//         };
+//     };
+//     display.reset();
 
-    var checkFullscreen = setupFullscreen(display, canvas, options);
-    display.fullscreenRequest = function(fullscreen, thenDo) {
-        // called from primitive to change fullscreen mode
-        if (display.fullscreen != fullscreen) {
-            display.fullscreen = fullscreen;
-            display.resizeTodo = thenDo;    // called after resizing
-            display.resizeTodoTimeout = setTimeout(display.resizeDone, 1000);
-            checkFullscreen();
-        } else thenDo();
-    };
-    display.resizeDone = function() {
-        clearTimeout(display.resizeTodoTimeout);
-        var todo = display.resizeTodo;
-        if (todo) {
-            display.resizeTodo = null;
-            todo();
-        }
-    };
-    display.clear = function() {
-        canvas.width = canvas.width;
-    };
-    display.showBanner = function(msg, style) {
-        style = style || {};
-        var ctx = display.context;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = style.color || "#F90";
-        ctx.font = style.font || 'bold 48px sans-serif';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
-    };
-    display.showProgress = function(value, style) {
-        style = style || {};
-        var ctx = display.context,
-            w = (canvas.width / 3) | 0,
-            h = 24,
-            x = canvas.width * 0.5 - w / 2,
-            y = canvas.height * 0.5 + 2 * h;
-        ctx.fillStyle = style.background || "#000";
-        ctx.fillRect(x, y, w, h);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = style.color || "#F90";
-        ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = style.color || "#F90";
-        ctx.fillRect(x, y, w * value, h);
-    };
-    display.executeClipboardPaste = function(text, timestamp) {
-        if (!display.vm) return true;
-        try {
-            display.clipboardString = text;
-            // simulate paste event for Squeak
-            fakeCmdOrCtrlKey('v'.charCodeAt(0), timestamp, display, eventQueue);
-        } catch(err) {
-            console.error("paste error " + err);
-        }
-    };
-    display.executeClipboardCopy = function(key, timestamp) {
-        if (!display.vm) return true;
-        // simulate copy event for Squeak so it places its text in clipboard
-        display.clipboardStringChanged = false;
-        fakeCmdOrCtrlKey((key || 'c').charCodeAt(0), timestamp, display, eventQueue);
-        var start = Date.now();
-        // now interpret until Squeak has copied to the clipboard
-        while (!display.clipboardStringChanged && Date.now() - start < 500)
-            display.vm.interpret(20);
-        if (!display.clipboardStringChanged) return;
-        // got it, now copy to the system clipboard
-        try {
-            return display.clipboardString;
-        } catch(err) {
-            console.error("copy error " + err);
-        }
-    };
-    canvas.onmousedown = function(evt) {
-        checkFullscreen();
-        recordMouseEvent('mousedown', evt, canvas, display, eventQueue, options);
-        evt.preventDefault();
-        return false;
-    };
-    canvas.onmouseup = function(evt) {
-        recordMouseEvent('mouseup', evt, canvas, display, eventQueue, options);
-        checkFullscreen();
-        evt.preventDefault();
-    };
-    canvas.onmousemove = function(evt) {
-        recordMouseEvent('mousemove', evt, canvas, display, eventQueue, options);
-        evt.preventDefault();
-    };
-    canvas.oncontextmenu = function() {
-        return false;
-    };
-    // touch event handling
-    var touch = {
-        state: 'idle',
-        button: 0,
-        x: 0,
-        y: 0,
-        dist: 0,
-        down: {},
-    };
-    function touchToMouse(evt) {
-        if (evt.touches.length) {
-            // average all touch positions
-            touch.x = touch.y = 0;
-            for (var i = 0; i < evt.touches.length; i++) {
-                touch.x += evt.touches[i].pageX / evt.touches.length;
-                touch.y += evt.touches[i].pageY / evt.touches.length;
-            }
-        }
-        return {
-            timeStamp: evt.timeStamp,
-            button: touch.button,
-            offsetX: touch.x - canvas.offsetLeft,
-            offsetY: touch.y - canvas.offsetTop,
-        };
-    }
-    function dd(ax, ay, bx, by) {var x = ax - bx, y = ay - by; return Math.sqrt(x*x + y*y);}
-    function dist(a, b) {return dd(a.pageX, a.pageY, b.pageX, b.pageY);}
-    function dent(n, l, t, u) { return n < l ? n + t - l : n > u ? n + t - u : t; }
-    function adjustDisplay(l, t, w, h) {
-        var cursorCanvas = display.cursorCanvas,
-            scale = w / canvas.width;
-        canvas.style.left = (l|0) + "px";
-        canvas.style.top = (t|0) + "px";
-        canvas.style.width = (w|0) + "px";
-        canvas.style.height = (h|0) + "px";
-        cursorCanvas.style.left = (l + display.cursorOffsetX + display.mouseX * scale|0) + "px";
-        cursorCanvas.style.top = (t + display.cursorOffsetY + display.mouseY * scale|0) + "px";
-        cursorCanvas.style.width = (cursorCanvas.width * scale|0) + "px";
-        cursorCanvas.style.height = (cursorCanvas.height * scale|0) + "px";
-        if (!options.pixelated) {
-            if (scale >= 3) {
-                canvas.classList.add("pixelated");
-                display.cursorCanvas.classList.add("pixelated");
-            } else {
-                canvas.classList.remove("pixelated");
-                display.cursorCanvas.classList.remove("pixelated");
-            }
-        }
-    }
-    // zooming/panning with two fingers
-    var maxZoom = 5;
-    function zoomStart(evt) {
-        touch.dist = dist(evt.touches[0], evt.touches[1]);
-        touch.down.x = touch.x;
-        touch.down.y = touch.y;
-        touch.down.dist = touch.dist;
-        touch.down.left = canvas.offsetLeft;
-        touch.down.top = canvas.offsetTop;
-        touch.down.width = canvas.offsetWidth;
-        touch.down.height = canvas.offsetHeight;
-        // store original canvas bounds
-        if (!touch.orig) touch.orig = {
-            left: touch.down.left,
-            top: touch.down.top,
-            right: touch.down.left + touch.down.width,
-            bottom: touch.down.top + touch.down.height,
-            width: touch.down.width,
-            height: touch.down.height,
-        };
-    }
-    function zoomMove(evt) {
-        if (evt.touches.length < 2) return;
-        touch.dist = dist(evt.touches[0], evt.touches[1]);
-        var minScale = touch.orig.width / touch.down.width,
-            //nowScale = dent(touch.dist / touch.down.dist, 0.8, 1, 1.5),
-            nowScale = touch.dist / touch.down.dist,
-            scale = Math.min(Math.max(nowScale, minScale * 0.95), minScale * maxZoom),
-            w = touch.down.width * scale,
-            h = touch.orig.height * w / touch.orig.width,
-            l = touch.down.left - (touch.down.x - touch.down.left) * (scale - 1) + (touch.x - touch.down.x),
-            t = touch.down.top - (touch.down.y - touch.down.top) * (scale - 1) + (touch.y - touch.down.y);
-        // allow to rubber-band by 20px for feedback
-        l = Math.max(Math.min(l, touch.orig.left + 20), touch.orig.right - w - 20);
-        t = Math.max(Math.min(t, touch.orig.top + 20), touch.orig.bottom - h - 20);
-        adjustDisplay(l, t, w, h);
-    }
-    function zoomEnd(evt) {
-        var l = canvas.offsetLeft,
-            t = canvas.offsetTop,
-            w = canvas.offsetWidth,
-            h = canvas.offsetHeight;
-        w = Math.min(Math.max(w, touch.orig.width), touch.orig.width * maxZoom);
-        h = touch.orig.height * w / touch.orig.width;
-        l = Math.max(Math.min(l, touch.orig.left), touch.orig.right - w);
-        t = Math.max(Math.min(t, touch.orig.top), touch.orig.bottom - h);
-        adjustDisplay(l, t, w, h);
-    }
-    // State machine to distinguish between 1st/2nd mouse button and zoom/pan:
-    // * if moved, or no 2nd finger within 100ms of 1st down, start mousing
-    // * if fingers moved significantly within 200ms of 2nd down, start zooming
-    // * if touch ended within this time, generate click (down+up)
-    // * otherwise, start mousing with 2nd button
-    // When mousing, always generate a move event before down event so that
-    // mouseover eventhandlers in image work better
-    canvas.ontouchstart = function(evt) {
-        evt.preventDefault();
-        var e = touchToMouse(evt);
-        for (var i = 0; i < evt.changedTouches.length; i++) {
-            switch (touch.state) {
-                case 'idle':
-                    touch.state = 'got1stFinger';
-                    touch.first = e;
-                    setTimeout(function(){
-                        if (touch.state !== 'got1stFinger') return;
-                        touch.state = 'mousing';
-                        touch.button = e.button = 0;
-                        recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                        recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
-                    }, 100);
-                    break;
-                case 'got1stFinger':
-                    touch.state = 'got2ndFinger';
-                    zoomStart(evt);
-                    setTimeout(function(){
-                        if (touch.state !== 'got2ndFinger') return;
-                        var didMove = Math.abs(touch.down.dist - touch.dist) > 10 ||
-                            dd(touch.down.x, touch.down.y, touch.x, touch.y) > 10;
-                        if (didMove) {
-                            touch.state = 'zooming';
-                        } else {
-                            touch.state = 'mousing';
-                            touch.button = e.button = 2;
-                            recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                            recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
-                        }
-                    }, 200);
-                    break;
-            }
-        }
-    };
-    canvas.ontouchmove = function(evt) {
-        evt.preventDefault();
-        var e = touchToMouse(evt);
-        switch (touch.state) {
-            case 'got1stFinger':
-                touch.state = 'mousing';
-                touch.button = e.button = 0;
-                recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
-                break;
-            case 'mousing':
-                recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                return;
-            case 'got2ndFinger':
-                if (evt.touches.length > 1)
-                    touch.dist = dist(evt.touches[0], evt.touches[1]);
-                return;
-            case 'zooming':
-                zoomMove(evt);
-                return;
-        }
-    };
-    canvas.ontouchend = function(evt) {
-        evt.preventDefault();
-        checkFullscreen();
-        var e = touchToMouse(evt);
-        for (var i = 0; i < evt.changedTouches.length; i++) {
-            switch (touch.state) {
-                case 'mousing':
-                    if (evt.touches.length > 0) break;
-                    touch.state = 'idle';
-                    recordMouseEvent('mouseup', e, canvas, display, eventQueue, options);
-                    return;
-                case 'got1stFinger':
-                    touch.state = 'idle';
-                    touch.button = e.button = 0;
-                    recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                    recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
-                    recordMouseEvent('mouseup', e, canvas, display, eventQueue, options);
-                    return;
-                case 'got2ndFinger':
-                    touch.state = 'mousing';
-                    touch.button = e.button = 2;
-                    recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
-                    recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
-                    break;
-                case 'zooming':
-                    if (evt.touches.length > 0) break;
-                    touch.state = 'idle';
-                    zoomEnd(evt);
-                    return;
-            }
-        }
-    };
-    canvas.ontouchcancel = function(evt) {
-        canvas.ontouchend(evt);
-    };
-    // cursorCanvas shows Squeak cursor
-    display.cursorCanvas.style.display = "block";
-    display.cursorCanvas.style.position = "absolute";
-    display.cursorCanvas.style.cursor = "none";
-    display.cursorCanvas.style.background = "transparent";
-    display.cursorCanvas.style.pointerEvents = "none";
-    canvas.parentElement.appendChild(display.cursorCanvas);
-    canvas.style.cursor = "none";
-    // keyboard stuff
-    document.onkeypress = function(evt) {
-        if (!display.vm) return true;
-        // check for ctrl-x/c/v/r
-        if (/[CXVR]/.test(String.fromCharCode(evt.charCode + 64)))
-            return true;  // let browser handle cut/copy/paste/reload
-        recordModifiers(evt, display);
-        recordKeyboardEvent(evt.charCode, evt.timeStamp, display, eventQueue);
-        evt.preventDefault();
-    };
-    document.onkeydown = function(evt) {
-        checkFullscreen();
-        if (!display.vm) return true;
-        recordModifiers(evt, display);
-        var squeakCode = ({
-            8: 8,   // Backspace
-            9: 9,   // Tab
-            13: 13, // Return
-            27: 27, // Escape
-            33: 11, // PageUp
-            34: 12, // PageDown
-            35: 4,  // End
-            36: 1,  // Home
-            37: 28, // Left
-            38: 30, // Up
-            39: 29, // Right
-            40: 31, // Down
-            45: 5,  // Insert
-            46: 127, // Delete
-        })[evt.keyCode];
-        if (squeakCode) { // special key pressed
-            recordKeyboardEvent(squeakCode, evt.timeStamp, display, eventQueue);
-            return evt.preventDefault();
-        }
-        if ((evt.metaKey || (evt.altKey && !evt.ctrlKey))) {
-            var key = evt.key; // only supported in FireFox, others have keyIdentifier
-            if (!key && evt.keyIdentifier && evt.keyIdentifier.slice(0,2) == 'U+')
-                key = String.fromCharCode(parseInt(evt.keyIdentifier.slice(2), 16));
-            if (key && key.length == 1) {
-                if (/[CXVR]/i.test(key))
-                    return true;  // let browser handle cut/copy/paste/reload
-                var code = key.charCodeAt(0);
-                if (/[A-Z]/.test(key) && !evt.shiftKey) code += 32;  // make lower-case
-                recordKeyboardEvent(code, evt.timeStamp, display, eventQueue);
-                return evt.preventDefault();
-            }
-        }
-    };
-    document.onkeyup = function(evt) {
-        if (!display.vm) return true;
-        recordModifiers(evt, display);
-    };
-    document.oncopy = function(evt, key) {
-        var text = display.executeClipboardCopy(key, evt.timeStamp);
-        if (typeof text === 'string') {
-            evt.clipboardData.setData("Text", text);
-        }
-        evt.preventDefault();
-    };
-    document.oncut = function(evt) {
-        if (!display.vm) return true;
-        document.oncopy(evt, 'x');
-    };
-    document.onpaste = function(evt) {
-        var text = evt.clipboardData.getData('Text');
-        display.executeClipboardPaste(text, evt.timeStamp);
-        evt.preventDefault();
-    };
-    // do not use addEventListener, we want to replace any previous drop handler
-    function dragEventHasFiles(evt) {
-        for (var i = 0; i < evt.dataTransfer.types.length; i++)
-            if (evt.dataTransfer.types[i] == 'Files') return true;
-        return false;
-    }
-    document.ondragover = function(evt) {
-        evt.preventDefault();
-        if (!dragEventHasFiles(evt)) {
-            evt.dataTransfer.dropEffect = 'none';
-        } else {
-            evt.dataTransfer.dropEffect = 'copy';
-            recordDragDropEvent(Squeak.EventDragMove, evt, canvas, display, eventQueue);
-        }
-    };
-    document.ondragenter = function(evt) {
-        if (!dragEventHasFiles(evt)) return;
-        recordDragDropEvent(Squeak.EventDragEnter, evt, canvas, display, eventQueue);
-    };
-    document.ondragleave = function(evt) {
-        if (!dragEventHasFiles(evt)) return;
-        recordDragDropEvent(Squeak.EventDragLeave, evt, canvas, display, eventQueue);
-    };
-    document.ondrop = function(evt) {
-        evt.preventDefault();
-        if (!dragEventHasFiles(evt)) return false;
-        var files = [].slice.call(evt.dataTransfer.files),
-            loaded = [],
-            image, imageName = null;
-        display.droppedFiles = [];
-        files.forEach(function(f) {
-            display.droppedFiles.push(f.name);
-            var reader = new FileReader();
-            reader.onload = function () {
-                var buffer = this.result;
-                Squeak.filePut(f.name, buffer);
-                loaded.push(f.name);
-                if (!image && /.*image$/.test(f.name) && (!display.vm || confirm("Run " + f.name + " now?\n(cancel to use as file)"))) {
-                    image = buffer;
-                    imageName = f.name;
-                }
-                if (loaded.length == files.length) {
-                    if (image) {
-                        SqueakJS.appName = imageName.slice(0, -6);
-                        SqueakJS.runImage(image, imageName, display, options);
-                    } else {
-                        recordDragDropEvent(Squeak.EventDragDrop, evt, canvas, display, eventQueue);
-                    }
-                }
-            };
-            reader.readAsArrayBuffer(f);
-        });
-        return false;
-    };
-    window.onresize = function() {
-        if (touch.orig) return; // manually resized
-        // call resizeDone only if window size didn't change for 300ms
-        var debounceWidth = window.innerWidth,
-            debounceHeight = window.innerHeight;
-        setTimeout(function() {
-            if (debounceWidth == window.innerWidth && debounceHeight == window.innerHeight)
-                display.resizeDone();
-        }, 300);
-        // if no fancy layout, don't bother
-        if ((!options.header || !options.footer) && !options.fullscreen) {
-            display.width = canvas.width;
-            display.height = canvas.height;
-            return;
-        }
-        // CSS won't let us do what we want so we will layout the canvas ourselves.
-        var fullscreen = options.fullscreen || display.fullscreen,
-            x = 0,
-            y = fullscreen ? 0 : options.header.offsetTop + options.header.offsetHeight,
-            w = window.innerWidth,
-            h = fullscreen ? window.innerHeight : Math.max(100, options.footer.offsetTop - y),
-            paddingX = 0, // padding outside canvas
-            paddingY = 0;
-        // above are the default values for laying out the canvas
-        if (!options.fixedWidth) { // set canvas resolution
-            display.width = w;
-            display.height = h;
-        } else { // fixed resolution and aspect ratio
-            display.width = options.fixedWidth;
-            display.height = options.fixedHeight;
-            var wantRatio = display.width / display.height,
-                haveRatio = w / h;
-            if (haveRatio > wantRatio) {
-                paddingX = w - Math.floor(h * wantRatio);
-            } else {
-                paddingY = h - Math.floor(w / wantRatio);
-            }
-        }
-        // set size and position
-        canvas.style.left = (x + Math.floor(paddingX / 2)) + "px";
-        canvas.style.top = (y + Math.floor(paddingY / 2)) + "px";
-        canvas.style.width = (w - paddingX) + "px";
-        canvas.style.height = (h - paddingY) + "px";
-        // set resolution
-        if (canvas.width != display.width || canvas.height != display.height) {
-            var preserveScreen = options.fixedWidth || !display.resizeTodo, // preserve unless changing fullscreen
-                imgData = preserveScreen && display.context.getImageData(0, 0, canvas.width, canvas.height);
-            canvas.width = display.width;
-            canvas.height = display.height;
-            if (imgData) display.context.putImageData(imgData, 0, 0);
-        }
-        // set cursor scale
-        if (options.fixedWidth) {
-            var cursorCanvas = display.cursorCanvas,
-                scale = canvas.offsetWidth / canvas.width;
-            cursorCanvas.style.width = (cursorCanvas.width * scale) + "px";
-            cursorCanvas.style.height = (cursorCanvas.height * scale) + "px";
-        }
-    };
-    window.onresize();
-    return display;
-}
+//     var checkFullscreen = setupFullscreen(display, canvas, options);
+//     display.fullscreenRequest = function(fullscreen, thenDo) {
+//         // called from primitive to change fullscreen mode
+//         if (display.fullscreen != fullscreen) {
+//             display.fullscreen = fullscreen;
+//             display.resizeTodo = thenDo;    // called after resizing
+//             display.resizeTodoTimeout = setTimeout(display.resizeDone, 1000);
+//             checkFullscreen();
+//         } else thenDo();
+//     };
+//     display.resizeDone = function() {
+//         clearTimeout(display.resizeTodoTimeout);
+//         var todo = display.resizeTodo;
+//         if (todo) {
+//             display.resizeTodo = null;
+//             todo();
+//         }
+//     };
+//     display.clear = function() {
+//         canvas.width = canvas.width;
+//     };
+//     display.showBanner = function(msg, style) {
+//         style = style || {};
+//         var ctx = display.context;
+//         ctx.clearRect(0, 0, canvas.width, canvas.height);
+//         ctx.fillStyle = style.color || "#F90";
+//         ctx.font = style.font || 'bold 48px sans-serif';
+//         ctx.textAlign = "center";
+//         ctx.textBaseline = "middle";
+//         ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
+//     };
+//     display.showProgress = function(value, style) {
+//         style = style || {};
+//         var ctx = display.context,
+//             w = (canvas.width / 3) | 0,
+//             h = 24,
+//             x = canvas.width * 0.5 - w / 2,
+//             y = canvas.height * 0.5 + 2 * h;
+//         ctx.fillStyle = style.background || "#000";
+//         ctx.fillRect(x, y, w, h);
+//         ctx.lineWidth = 2;
+//         ctx.strokeStyle = style.color || "#F90";
+//         ctx.strokeRect(x, y, w, h);
+//         ctx.fillStyle = style.color || "#F90";
+//         ctx.fillRect(x, y, w * value, h);
+//     };
+//     display.executeClipboardPaste = function(text, timestamp) {
+//         if (!display.vm) return true;
+//         try {
+//             display.clipboardString = text;
+//             // simulate paste event for Squeak
+//             fakeCmdOrCtrlKey('v'.charCodeAt(0), timestamp, display, eventQueue);
+//         } catch(err) {
+//             console.error("paste error " + err);
+//         }
+//     };
+//     display.executeClipboardCopy = function(key, timestamp) {
+//         if (!display.vm) return true;
+//         // simulate copy event for Squeak so it places its text in clipboard
+//         display.clipboardStringChanged = false;
+//         fakeCmdOrCtrlKey((key || 'c').charCodeAt(0), timestamp, display, eventQueue);
+//         var start = Date.now();
+//         // now interpret until Squeak has copied to the clipboard
+//         while (!display.clipboardStringChanged && Date.now() - start < 500)
+//             display.vm.interpret(20);
+//         if (!display.clipboardStringChanged) return;
+//         // got it, now copy to the system clipboard
+//         try {
+//             return display.clipboardString;
+//         } catch(err) {
+//             console.error("copy error " + err);
+//         }
+//     };
+//     canvas.onmousedown = function(evt) {
+//         checkFullscreen();
+//         recordMouseEvent('mousedown', evt, canvas, display, eventQueue, options);
+//         evt.preventDefault();
+//         return false;
+//     };
+//     canvas.onmouseup = function(evt) {
+//         recordMouseEvent('mouseup', evt, canvas, display, eventQueue, options);
+//         checkFullscreen();
+//         evt.preventDefault();
+//     };
+//     canvas.onmousemove = function(evt) {
+//         recordMouseEvent('mousemove', evt, canvas, display, eventQueue, options);
+//         evt.preventDefault();
+//     };
+//     canvas.oncontextmenu = function() {
+//         return false;
+//     };
+//     // touch event handling
+//     var touch = {
+//         state: 'idle',
+//         button: 0,
+//         x: 0,
+//         y: 0,
+//         dist: 0,
+//         down: {},
+//     };
+//     function touchToMouse(evt) {
+//         if (evt.touches.length) {
+//             // average all touch positions
+//             touch.x = touch.y = 0;
+//             for (var i = 0; i < evt.touches.length; i++) {
+//                 touch.x += evt.touches[i].pageX / evt.touches.length;
+//                 touch.y += evt.touches[i].pageY / evt.touches.length;
+//             }
+//         }
+//         return {
+//             timeStamp: evt.timeStamp,
+//             button: touch.button,
+//             offsetX: touch.x - canvas.offsetLeft,
+//             offsetY: touch.y - canvas.offsetTop,
+//         };
+//     }
+//     function dd(ax, ay, bx, by) {var x = ax - bx, y = ay - by; return Math.sqrt(x*x + y*y);}
+//     function dist(a, b) {return dd(a.pageX, a.pageY, b.pageX, b.pageY);}
+//     function dent(n, l, t, u) { return n < l ? n + t - l : n > u ? n + t - u : t; }
+//     function adjustDisplay(l, t, w, h) {
+//         var cursorCanvas = display.cursorCanvas,
+//             scale = w / canvas.width;
+//         canvas.style.left = (l|0) + "px";
+//         canvas.style.top = (t|0) + "px";
+//         canvas.style.width = (w|0) + "px";
+//         canvas.style.height = (h|0) + "px";
+//         cursorCanvas.style.left = (l + display.cursorOffsetX + display.mouseX * scale|0) + "px";
+//         cursorCanvas.style.top = (t + display.cursorOffsetY + display.mouseY * scale|0) + "px";
+//         cursorCanvas.style.width = (cursorCanvas.width * scale|0) + "px";
+//         cursorCanvas.style.height = (cursorCanvas.height * scale|0) + "px";
+//         if (!options.pixelated) {
+//             if (scale >= 3) {
+//                 canvas.classList.add("pixelated");
+//                 display.cursorCanvas.classList.add("pixelated");
+//             } else {
+//                 canvas.classList.remove("pixelated");
+//                 display.cursorCanvas.classList.remove("pixelated");
+//             }
+//         }
+//     }
+//     // zooming/panning with two fingers
+//     var maxZoom = 5;
+//     function zoomStart(evt) {
+//         touch.dist = dist(evt.touches[0], evt.touches[1]);
+//         touch.down.x = touch.x;
+//         touch.down.y = touch.y;
+//         touch.down.dist = touch.dist;
+//         touch.down.left = canvas.offsetLeft;
+//         touch.down.top = canvas.offsetTop;
+//         touch.down.width = canvas.offsetWidth;
+//         touch.down.height = canvas.offsetHeight;
+//         // store original canvas bounds
+//         if (!touch.orig) touch.orig = {
+//             left: touch.down.left,
+//             top: touch.down.top,
+//             right: touch.down.left + touch.down.width,
+//             bottom: touch.down.top + touch.down.height,
+//             width: touch.down.width,
+//             height: touch.down.height,
+//         };
+//     }
+//     function zoomMove(evt) {
+//         if (evt.touches.length < 2) return;
+//         touch.dist = dist(evt.touches[0], evt.touches[1]);
+//         var minScale = touch.orig.width / touch.down.width,
+//             //nowScale = dent(touch.dist / touch.down.dist, 0.8, 1, 1.5),
+//             nowScale = touch.dist / touch.down.dist,
+//             scale = Math.min(Math.max(nowScale, minScale * 0.95), minScale * maxZoom),
+//             w = touch.down.width * scale,
+//             h = touch.orig.height * w / touch.orig.width,
+//             l = touch.down.left - (touch.down.x - touch.down.left) * (scale - 1) + (touch.x - touch.down.x),
+//             t = touch.down.top - (touch.down.y - touch.down.top) * (scale - 1) + (touch.y - touch.down.y);
+//         // allow to rubber-band by 20px for feedback
+//         l = Math.max(Math.min(l, touch.orig.left + 20), touch.orig.right - w - 20);
+//         t = Math.max(Math.min(t, touch.orig.top + 20), touch.orig.bottom - h - 20);
+//         adjustDisplay(l, t, w, h);
+//     }
+//     function zoomEnd(evt) {
+//         var l = canvas.offsetLeft,
+//             t = canvas.offsetTop,
+//             w = canvas.offsetWidth,
+//             h = canvas.offsetHeight;
+//         w = Math.min(Math.max(w, touch.orig.width), touch.orig.width * maxZoom);
+//         h = touch.orig.height * w / touch.orig.width;
+//         l = Math.max(Math.min(l, touch.orig.left), touch.orig.right - w);
+//         t = Math.max(Math.min(t, touch.orig.top), touch.orig.bottom - h);
+//         adjustDisplay(l, t, w, h);
+//     }
+//     // State machine to distinguish between 1st/2nd mouse button and zoom/pan:
+//     // * if moved, or no 2nd finger within 100ms of 1st down, start mousing
+//     // * if fingers moved significantly within 200ms of 2nd down, start zooming
+//     // * if touch ended within this time, generate click (down+up)
+//     // * otherwise, start mousing with 2nd button
+//     // When mousing, always generate a move event before down event so that
+//     // mouseover eventhandlers in image work better
+//     canvas.ontouchstart = function(evt) {
+//         evt.preventDefault();
+//         var e = touchToMouse(evt);
+//         for (var i = 0; i < evt.changedTouches.length; i++) {
+//             switch (touch.state) {
+//                 case 'idle':
+//                     touch.state = 'got1stFinger';
+//                     touch.first = e;
+//                     setTimeout(function(){
+//                         if (touch.state !== 'got1stFinger') return;
+//                         touch.state = 'mousing';
+//                         touch.button = e.button = 0;
+//                         recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                         recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
+//                     }, 100);
+//                     break;
+//                 case 'got1stFinger':
+//                     touch.state = 'got2ndFinger';
+//                     zoomStart(evt);
+//                     setTimeout(function(){
+//                         if (touch.state !== 'got2ndFinger') return;
+//                         var didMove = Math.abs(touch.down.dist - touch.dist) > 10 ||
+//                             dd(touch.down.x, touch.down.y, touch.x, touch.y) > 10;
+//                         if (didMove) {
+//                             touch.state = 'zooming';
+//                         } else {
+//                             touch.state = 'mousing';
+//                             touch.button = e.button = 2;
+//                             recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                             recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
+//                         }
+//                     }, 200);
+//                     break;
+//             }
+//         }
+//     };
+//     canvas.ontouchmove = function(evt) {
+//         evt.preventDefault();
+//         var e = touchToMouse(evt);
+//         switch (touch.state) {
+//             case 'got1stFinger':
+//                 touch.state = 'mousing';
+//                 touch.button = e.button = 0;
+//                 recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                 recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
+//                 break;
+//             case 'mousing':
+//                 recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                 return;
+//             case 'got2ndFinger':
+//                 if (evt.touches.length > 1)
+//                     touch.dist = dist(evt.touches[0], evt.touches[1]);
+//                 return;
+//             case 'zooming':
+//                 zoomMove(evt);
+//                 return;
+//         }
+//     };
+//     canvas.ontouchend = function(evt) {
+//         evt.preventDefault();
+//         checkFullscreen();
+//         var e = touchToMouse(evt);
+//         for (var i = 0; i < evt.changedTouches.length; i++) {
+//             switch (touch.state) {
+//                 case 'mousing':
+//                     if (evt.touches.length > 0) break;
+//                     touch.state = 'idle';
+//                     recordMouseEvent('mouseup', e, canvas, display, eventQueue, options);
+//                     return;
+//                 case 'got1stFinger':
+//                     touch.state = 'idle';
+//                     touch.button = e.button = 0;
+//                     recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                     recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
+//                     recordMouseEvent('mouseup', e, canvas, display, eventQueue, options);
+//                     return;
+//                 case 'got2ndFinger':
+//                     touch.state = 'mousing';
+//                     touch.button = e.button = 2;
+//                     recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
+//                     recordMouseEvent('mousedown', e, canvas, display, eventQueue, options);
+//                     break;
+//                 case 'zooming':
+//                     if (evt.touches.length > 0) break;
+//                     touch.state = 'idle';
+//                     zoomEnd(evt);
+//                     return;
+//             }
+//         }
+//     };
+//     canvas.ontouchcancel = function(evt) {
+//         canvas.ontouchend(evt);
+//     };
+//     // cursorCanvas shows Squeak cursor
+//     display.cursorCanvas.style.display = "block";
+//     display.cursorCanvas.style.position = "absolute";
+//     display.cursorCanvas.style.cursor = "none";
+//     display.cursorCanvas.style.background = "transparent";
+//     display.cursorCanvas.style.pointerEvents = "none";
+//     canvas.parentElement.appendChild(display.cursorCanvas);
+//     canvas.style.cursor = "none";
+//     // keyboard stuff
+//     document.onkeypress = function(evt) {
+//         if (!display.vm) return true;
+//         // check for ctrl-x/c/v/r
+//         if (/[CXVR]/.test(String.fromCharCode(evt.charCode + 64)))
+//             return true;  // let browser handle cut/copy/paste/reload
+//         recordModifiers(evt, display);
+//         recordKeyboardEvent(evt.charCode, evt.timeStamp, display, eventQueue);
+//         evt.preventDefault();
+//     };
+//     document.onkeydown = function(evt) {
+//         checkFullscreen();
+//         if (!display.vm) return true;
+//         recordModifiers(evt, display);
+//         var squeakCode = ({
+//             8: 8,   // Backspace
+//             9: 9,   // Tab
+//             13: 13, // Return
+//             27: 27, // Escape
+//             33: 11, // PageUp
+//             34: 12, // PageDown
+//             35: 4,  // End
+//             36: 1,  // Home
+//             37: 28, // Left
+//             38: 30, // Up
+//             39: 29, // Right
+//             40: 31, // Down
+//             45: 5,  // Insert
+//             46: 127, // Delete
+//         })[evt.keyCode];
+//         if (squeakCode) { // special key pressed
+//             recordKeyboardEvent(squeakCode, evt.timeStamp, display, eventQueue);
+//             return evt.preventDefault();
+//         }
+//         if ((evt.metaKey || (evt.altKey && !evt.ctrlKey))) {
+//             var key = evt.key; // only supported in FireFox, others have keyIdentifier
+//             if (!key && evt.keyIdentifier && evt.keyIdentifier.slice(0,2) == 'U+')
+//                 key = String.fromCharCode(parseInt(evt.keyIdentifier.slice(2), 16));
+//             if (key && key.length == 1) {
+//                 if (/[CXVR]/i.test(key))
+//                     return true;  // let browser handle cut/copy/paste/reload
+//                 var code = key.charCodeAt(0);
+//                 if (/[A-Z]/.test(key) && !evt.shiftKey) code += 32;  // make lower-case
+//                 recordKeyboardEvent(code, evt.timeStamp, display, eventQueue);
+//                 return evt.preventDefault();
+//             }
+//         }
+//     };
+//     document.onkeyup = function(evt) {
+//         if (!display.vm) return true;
+//         recordModifiers(evt, display);
+//     };
+//     document.oncopy = function(evt, key) {
+//         var text = display.executeClipboardCopy(key, evt.timeStamp);
+//         if (typeof text === 'string') {
+//             evt.clipboardData.setData("Text", text);
+//         }
+//         evt.preventDefault();
+//     };
+//     document.oncut = function(evt) {
+//         if (!display.vm) return true;
+//         document.oncopy(evt, 'x');
+//     };
+//     document.onpaste = function(evt) {
+//         var text = evt.clipboardData.getData('Text');
+//         display.executeClipboardPaste(text, evt.timeStamp);
+//         evt.preventDefault();
+//     };
+//     // do not use addEventListener, we want to replace any previous drop handler
+//     function dragEventHasFiles(evt) {
+//         for (var i = 0; i < evt.dataTransfer.types.length; i++)
+//             if (evt.dataTransfer.types[i] == 'Files') return true;
+//         return false;
+//     }
+//     document.ondragover = function(evt) {
+//         evt.preventDefault();
+//         if (!dragEventHasFiles(evt)) {
+//             evt.dataTransfer.dropEffect = 'none';
+//         } else {
+//             evt.dataTransfer.dropEffect = 'copy';
+//             recordDragDropEvent(Squeak.EventDragMove, evt, canvas, display, eventQueue);
+//         }
+//     };
+//     document.ondragenter = function(evt) {
+//         if (!dragEventHasFiles(evt)) return;
+//         recordDragDropEvent(Squeak.EventDragEnter, evt, canvas, display, eventQueue);
+//     };
+//     document.ondragleave = function(evt) {
+//         if (!dragEventHasFiles(evt)) return;
+//         recordDragDropEvent(Squeak.EventDragLeave, evt, canvas, display, eventQueue);
+//     };
+//     document.ondrop = function(evt) {
+//         evt.preventDefault();
+//         if (!dragEventHasFiles(evt)) return false;
+//         var files = [].slice.call(evt.dataTransfer.files),
+//             loaded = [],
+//             image, imageName = null;
+//         display.droppedFiles = [];
+//         files.forEach(function(f) {
+//             display.droppedFiles.push(f.name);
+//             var reader = new FileReader();
+//             reader.onload = function () {
+//                 var buffer = this.result;
+//                 Squeak.filePut(f.name, buffer);
+//                 loaded.push(f.name);
+//                 if (!image && /.*image$/.test(f.name) && (!display.vm || confirm("Run " + f.name + " now?\n(cancel to use as file)"))) {
+//                     image = buffer;
+//                     imageName = f.name;
+//                 }
+//                 if (loaded.length == files.length) {
+//                     if (image) {
+//                         SqueakJS.appName = imageName.slice(0, -6);
+//                         SqueakJS.runImage(image, imageName, display, options);
+//                     } else {
+//                         recordDragDropEvent(Squeak.EventDragDrop, evt, canvas, display, eventQueue);
+//                     }
+//                 }
+//             };
+//             reader.readAsArrayBuffer(f);
+//         });
+//         return false;
+//     };
+//     window.onresize = function() {
+//         if (touch.orig) return; // manually resized
+//         // call resizeDone only if window size didn't change for 300ms
+//         var debounceWidth = window.innerWidth,
+//             debounceHeight = window.innerHeight;
+//         setTimeout(function() {
+//             if (debounceWidth == window.innerWidth && debounceHeight == window.innerHeight)
+//                 display.resizeDone();
+//         }, 300);
+//         // if no fancy layout, don't bother
+//         if ((!options.header || !options.footer) && !options.fullscreen) {
+//             display.width = canvas.width;
+//             display.height = canvas.height;
+//             return;
+//         }
+//         // CSS won't let us do what we want so we will layout the canvas ourselves.
+//         var fullscreen = options.fullscreen || display.fullscreen,
+//             x = 0,
+//             y = fullscreen ? 0 : options.header.offsetTop + options.header.offsetHeight,
+//             w = window.innerWidth,
+//             h = fullscreen ? window.innerHeight : Math.max(100, options.footer.offsetTop - y),
+//             paddingX = 0, // padding outside canvas
+//             paddingY = 0;
+//         // above are the default values for laying out the canvas
+//         if (!options.fixedWidth) { // set canvas resolution
+//             display.width = w;
+//             display.height = h;
+//         } else { // fixed resolution and aspect ratio
+//             display.width = options.fixedWidth;
+//             display.height = options.fixedHeight;
+//             var wantRatio = display.width / display.height,
+//                 haveRatio = w / h;
+//             if (haveRatio > wantRatio) {
+//                 paddingX = w - Math.floor(h * wantRatio);
+//             } else {
+//                 paddingY = h - Math.floor(w / wantRatio);
+//             }
+//         }
+//         // set size and position
+//         canvas.style.left = (x + Math.floor(paddingX / 2)) + "px";
+//         canvas.style.top = (y + Math.floor(paddingY / 2)) + "px";
+//         canvas.style.width = (w - paddingX) + "px";
+//         canvas.style.height = (h - paddingY) + "px";
+//         // set resolution
+//         if (canvas.width != display.width || canvas.height != display.height) {
+//             var preserveScreen = options.fixedWidth || !display.resizeTodo, // preserve unless changing fullscreen
+//                 imgData = preserveScreen && display.context.getImageData(0, 0, canvas.width, canvas.height);
+//             canvas.width = display.width;
+//             canvas.height = display.height;
+//             if (imgData) display.context.putImageData(imgData, 0, 0);
+//         }
+//         // set cursor scale
+//         if (options.fixedWidth) {
+//             var cursorCanvas = display.cursorCanvas,
+//                 scale = canvas.offsetWidth / canvas.width;
+//             cursorCanvas.style.width = (cursorCanvas.width * scale) + "px";
+//             cursorCanvas.style.height = (cursorCanvas.height * scale) + "px";
+//         }
+//     };
+//     window.onresize();
+//     return display;
+// }
 
 function setupSpinner(vm, options) {
     var spinner = options.spinner;
