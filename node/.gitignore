@@ -1,2 +1,7 @@
+plugins/
 *.changes
 *.image
+
+jit.js
+vm.js
+squeak.js
