@@ -920,7 +920,7 @@ try {
 
 var loop; // holds timeout for main loop
 
-SqueakJS.runImage = function(buffer, name, display, options) {
+global.SqueakJS.runImage = function(buffer, name, display, options) {
     window.onbeforeunload = function(evt) {
         var msg = SqueakJS.appName + ' is still running';
         evt.returnValue = msg;
@@ -1009,16 +1009,9 @@ function fetchTemplates(options) {
     }
 }
 
-global.SqueakJS.runSqueak = function(imageUrl, canvas, options) {
-    // processOptions(options);
-    if (options.image) imageUrl = options.image;
-    else options.image = imageUrl;
-    if (imageUrl.match(/^http:/) && location.protocol.match(/^https/)) {
-        location.protocol = 'http';
-        return;
-    }
+global.SqueakJS.runSqueak = function(options) {
     SqueakJS.options = options;
-    SqueakJS.appName = options.appName || imageUrl.replace(/.*\//, "").replace(/\.image$/, "");
+    SqueakJS.appName = options.appName || 'SqueakJS';
     Squeak.fsck();
     fetchTemplates(options);
     var display = createSqueakDisplay(canvas, options),
@@ -1081,13 +1074,13 @@ global.SqueakJS.runSqueak = function(imageUrl, canvas, options) {
         rq.send();
     }
     getNextFile(function whenAllDone(imageData) {
-        SqueakJS.runImage(imageData, options.root + imageName, display, options);
+       global.SqueakJS.runImage(imageData, options.root + imageName, display, options);
     });
     return display;
 };
 
 global.SqueakJS.quitSqueak = function() {
-    SqueakJS.vm.quitFlag = true;
+    global.SqueakJS.vm.quitFlag = true;
 };
 
 global.SqueakJS.onQuit = function(vm, display, options) {
