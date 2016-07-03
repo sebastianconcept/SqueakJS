@@ -1083,16 +1083,17 @@ global.SqueakJS.runSqueak = function(imageUrl, canvas, options) {
     return display;
 };
 
-SqueakJS.quitSqueak = function() {
+global.SqueakJS.quitSqueak = function() {
     SqueakJS.vm.quitFlag = true;
 };
 
-SqueakJS.onQuit = function(vm, display, options) {
-    window.onbeforeunload = null;
-    display.vm = null;
-    if (options.spinner) options.spinner.style.display = "none";
-    if (options.onQuit) options.onQuit(vm, display, options);
-    else display.showBanner(SqueakJS.appName + " stopped.");
+global.SqueakJS.onQuit = function(vm, display, options) {
+  console.log('SqueakJS.onQuit >> no-op');
+    // window.onbeforeunload = null;
+    // display.vm = null;
+    // if (options.spinner) options.spinner.style.display = "none";
+    // if (options.onQuit) options.onQuit(vm, display, options);
+    // else display.showBanner(SqueakJS.appName + " stopped.");
 };
 
 }); // end module
