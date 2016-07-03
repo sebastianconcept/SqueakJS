@@ -1,3 +1,7 @@
+require('./sqModule');
+var os = require('os');
+var extend = require('extend');
+
 global.sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
 "use strict";
 /*
@@ -38,17 +42,17 @@ try {
   localStorage = {};
 }
 
-Object.extend(Squeak,
-"version", {
+extend(Squeak,
+'version', {
     // system attributes
-    vmVersion: "SqueakJS 0.8.3",
-    vmBuild: "unknown",                 // replace at runtime by last-modified?
-    vmPath: "/",
-    vmFile: "vm.js",
-    platformName: "Web",
-    platformSubtype: "unknown",
-    osVersion: navigator.userAgent,     // might want to parse
-    windowSystem: "HTML",
+    vmVersion: 'SqueakJS 0.8.3',
+    vmBuild: 'unknown',                 // replace at runtime by last-modified?
+    vmPath: '/',
+    vmFile: 'vm.js',
+    platformName: os.platform(),
+    platformSubtype: 'unknown',
+    osVersion: os.release(),
+    windowSystem: 'none (NodeJS)'
 },
 "object header", {
     // object headers
