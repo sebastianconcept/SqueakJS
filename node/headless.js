@@ -881,15 +881,15 @@ function makeSqueakEvent(evt, sqEvtBuf, sqTimeOffset) {
 //     return display;
 // }
 
-function setupSpinner(vm, options) {
-    var spinner = options.spinner;
-    if (!spinner) return null;
-    spinner.onmousedown = function(evt) {
-        if (confirm(SqueakJS.appName + " is busy. Interrupt?"))
-            vm.interruptPending = true;
-    };
-    return spinner.style;
-}
+// function setupSpinner(vm, options) {
+//     var spinner = options.spinner;
+//     if (!spinner) return null;
+//     spinner.onmousedown = function(evt) {
+//         if (confirm(SqueakJS.appName + " is busy. Interrupt?"))
+//             vm.interruptPending = true;
+//     };
+//     return spinner.style;
+// }
 
 var spinnerAngle = 0,
     becameBusy = 0;
