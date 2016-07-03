@@ -235,17 +235,17 @@ function recordModifiers(evt, display) {
 
 var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 
-function updateMousePos(evt, canvas, display) {
-    var evtX = canUseMouseOffset ? evt.offsetX : evt.layerX,
-        evtY = canUseMouseOffset ? evt.offsetY : evt.layerY;
-    display.cursorCanvas.style.left = (evtX + canvas.offsetLeft + display.cursorOffsetX) + "px";
-    display.cursorCanvas.style.top = (evtY + canvas.offsetTop + display.cursorOffsetY) + "px";
-    var x = (evtX * canvas.width / canvas.offsetWidth) | 0,
-        y = (evtY * canvas.height / canvas.offsetHeight) | 0;
-    // clamp to display size
-    display.mouseX = Math.max(0, Math.min(display.width, x));
-    display.mouseY = Math.max(0, Math.min(display.height, y));
-}
+// function updateMousePos(evt, canvas, display) {
+//     var evtX = canUseMouseOffset ? evt.offsetX : evt.layerX,
+//         evtY = canUseMouseOffset ? evt.offsetY : evt.layerY;
+//     display.cursorCanvas.style.left = (evtX + canvas.offsetLeft + display.cursorOffsetX) + "px";
+//     display.cursorCanvas.style.top = (evtY + canvas.offsetTop + display.cursorOffsetY) + "px";
+//     var x = (evtX * canvas.width / canvas.offsetWidth) | 0,
+//         y = (evtY * canvas.height / canvas.offsetHeight) | 0;
+//     // clamp to display size
+//     display.mouseX = Math.max(0, Math.min(display.width, x));
+//     display.mouseY = Math.max(0, Math.min(display.height, y));
+// }
 
 function recordMouseEvent(what, evt, canvas, display, eventQueue, options) {
     updateMousePos(evt, canvas, display);
