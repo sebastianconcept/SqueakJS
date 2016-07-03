@@ -27,34 +27,34 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
-window.module = function(dottedPath) {
-    if (dottedPath === "") return window;
-    var path = dottedPath.split("."),
-        name = path.pop(),
-        parent = module(path.join(".")),
-        self = parent[name];
-    if (!self) parent[name] = self = {
-        loaded: false,
-        pending: [],
-        requires: function(req) {
-            return {
-                toRun: function(code) {
-                    function load() {
-                        code();
-                        self.loaded = true;
-                        self.pending.forEach(function(f){f();});
-                    }
-                    if (req && !module(req).loaded) {
-                        module(req).pending.push(load);
-                    } else {
-                        load();
-                    }
-                }
-            };
-        },
-    };
-    return self;
-};
+// window.module = function(dottedPath) {
+//     if (dottedPath === "") return window;
+//     var path = dottedPath.split("."),
+//         name = path.pop(),
+//         parent = module(path.join(".")),
+//         self = parent[name];
+//     if (!self) parent[name] = self = {
+//         loaded: false,
+//         pending: [],
+//         requires: function(req) {
+//             return {
+//                 toRun: function(code) {
+//                     function load() {
+//                         code();
+//                         self.loaded = true;
+//                         self.pending.forEach(function(f){f();});
+//                     }
+//                     if (req && !module(req).loaded) {
+//                         module(req).pending.push(load);
+//                     } else {
+//                         load();
+//                     }
+//                 }
+//             };
+//         },
+//     };
+//     return self;
+// };
 
 Object.extend = function(obj /* + more args */ ) {
     // skip arg 0, copy properties of other args to obj
