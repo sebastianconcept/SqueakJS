@@ -3,6 +3,8 @@
  * is handled by browser and SocketPlugin
  */
 
+var Squeak = require('../vm').Squeak;
+
 function SqueakSSL() {
   "use strict";
 
@@ -117,6 +119,8 @@ function SqueakSSL() {
   };
 }
 
-window.addEventListener('load', function() {
-  Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
-});
+Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
+
+// window.addEventListener('load', function() {
+//   Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
+// });
