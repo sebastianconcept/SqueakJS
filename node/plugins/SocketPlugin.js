@@ -4,6 +4,8 @@
  * it uses the crossorigin.me proxy.
  */
 
+var Squeak = require('../vm').Squeak;
+
 function SocketPlugin() {
   "use strict";
 
@@ -114,7 +116,8 @@ function SocketPlugin() {
             }
           }
 
-          if (window.fetch) {
+          // if (window.fetch) {   what's the intention here? using false for now...
+          if (false) {
             this._performFetchAPIRequest(targetURL, httpMethod, data, headerLines);
           } else {
             this._performXMLHTTPRequest(targetURL, httpMethod, data, headerLines);
@@ -139,7 +142,7 @@ function SocketPlugin() {
 
           fetch(this._getURL(targetURL), init)
           .then(thisHandle._handleFetchAPIResponse.bind(thisHandle))
-          .catch(function (e) { 
+          .catch(function (e) {
             var url = thisHandle._getURL(targetURL, true);
             console.warn('Retrying with CORS proxy: ' + url);
             fetch(url, init)
@@ -274,7 +277,7 @@ function SocketPlugin() {
           if (this.status == plugin.Socket_Connected) {
             if (this.response && this.response.length > 0) {
               this._signalReadSemaphore();
-              return true; 
+              return true;
             }
             if (this.responseSentCompletly) {
               // Signal older Socket implementations that they reached the end
@@ -308,7 +311,7 @@ function SocketPlugin() {
 
         send: function(data, start, end) {
           if (this.sendTimeout !== null) {
-            window.clearTimeout(this.sendTimeout);
+            clearTimeout(this.sendTimeout);
           }
           this.lastSend = Date.now();
           var newBytes = data.bytes.subarray(start, end);
@@ -468,6 +471,8 @@ function SocketPlugin() {
   };
 }
 
-window.addEventListener('load', function() {
-  Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
-});
+Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
+
+// window.addEventListener('load', function() {
+//   Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
+// });
