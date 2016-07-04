@@ -28,4 +28,7 @@ sqModule = function(dottedPath) {
     return self;
 };
 
+// console.log('global.module === module', global.module === module);
+console.log(' ========= module', module);
+
 module.exports = sqModule;

@@ -1,8 +1,7 @@
-plugins/
 node_modules/
 localStorage/
 
 *.changes
 *.image
 
-jit.js
+
