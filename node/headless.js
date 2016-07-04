@@ -64,37 +64,38 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
 
 (function(){
     console.log('scripts loader ...');
-    var scripts = document.getElementsByTagName("script"),
-        squeakjs = scripts[scripts.length - 1],
-        vmDir = squeakjs.src.replace(/[^\/]*$/, "");
-    if (squeakjs.src.match(/squeak\.min\.js$/)) return;
-    [   "vm.js",
-        "jit.js",
-        "plugins/ADPCMCodecPlugin.js",
-        "plugins/B2DPlugin.js",
-        "plugins/BitBltPlugin.js",
-        "plugins/FFTPlugin.js",
-        "plugins/FloatArrayPlugin.js",
-        "plugins/GeniePlugin.js",
-        "plugins/JPEGReaderPlugin.js",
-        "plugins/KedamaPlugin.js",
-        "plugins/KedamaPlugin2.js",
-        "plugins/Klatt.js",
-        "plugins/LargeIntegers.js",
-        "plugins/Matrix2x3Plugin.js",
-        "plugins/MiscPrimitivePlugin.js",
-        "plugins/ScratchPlugin.js",
-        "plugins/SocketPlugin.js",
-        "plugins/SqueakSSL.js",
-        "plugins/SoundGenerationPlugin.js",
-        "plugins/StarSqueakPlugin.js",
-        "plugins/ZipPlugin.js",
-        "lib/lz-string.js",
+    // var scripts = document.getElementsByTagName("script"),
+    //     squeakjs = scripts[scripts.length - 1],
+    //     vmDir = squeakjs.src.replace(/[^\/]*$/, '');
+    // if (squeakjs.src.match(/squeak\.min\.js$/)) return;
+    [   './vm',
+        './jit',
+        'plugins/ADPCMCodecPlugin',
+        'plugins/B2DPlugin',
+        'plugins/BitBltPlugin',
+        'plugins/FFTPlugin',
+        'plugins/FloatArrayPlugin',
+        'plugins/GeniePlugin',
+        'plugins/JPEGReaderPlugin',
+        'plugins/KedamaPlugin',
+        'plugins/KedamaPlugin2',
+        'plugins/Klatt',
+        'plugins/LargeIntegers',
+        'plugins/Matrix2x3Plugin',
+        'plugins/MiscPrimitivePlugin',
+        'plugins/ScratchPlugin',
+        'plugins/SocketPlugin',
+        'plugins/SqueakSSL',
+        'plugins/SoundGenerationPlugin',
+        'plugins/StarSqueakPlugin',
+        'plugins/ZipPlugin',
+        'lib/lz-string',
     ].forEach(function(filename) {
-        var script = document.createElement('script');
-        script.setAttribute("type","text/javascript");
-        script.setAttribute("src", vmDir + filename);
-        document.getElementsByTagName("head")[0].appendChild(script);
+        require(filename);
+        // var script = document.createElement('script');
+        // script.setAttribute("type","text/javascript");
+        // script.setAttribute("src", vmDir + filename);
+        // document.getElementsByTagName("head")[0].appendChild(script);
     });
 })();
 
