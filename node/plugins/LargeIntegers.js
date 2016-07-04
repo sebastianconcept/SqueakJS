@@ -5,7 +5,10 @@
 	LargeIntegersPlugin VMMaker-bf.353 uuid: 8ae25e7e-8d2c-451e-8277-598b30e9c002
  */
 
-module("users.bert.SqueakJS.plugins.LargeIntegers").requires("users.bert.SqueakJS.vm").toRun(function() {
+var sqModule = require('../sqModule');
+var Squeak = require('../vm').Squeak;
+
+sqModule("users.bert.SqueakJS.plugins.LargeIntegers").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;
@@ -254,7 +257,7 @@ function cDigitDivlenremlenquolen(pDiv, divLen, pRem, remLen, pQuo, quoLen) {
 			mul = q * dnh;
 			hi = mul >>> 8;
 
-			/* Correct overestimate of q.                
+			/* Correct overestimate of q.
 				Max of 2 iterations through loop -- see Knuth vol. 2 */
 
 			lo = mul & 255;
@@ -319,9 +322,9 @@ function cDigitDivlenremlenquolen(pDiv, divLen, pRem, remLen, pQuo, quoLen) {
 }
 
 
-/*	Answer the index (in bits) of the high order bit of the receiver, or zero if the    
-	 receiver is zero. This method is allowed (and needed) for     
-	LargeNegativeIntegers as well, since Squeak's LargeIntegers are     
+/*	Answer the index (in bits) of the high order bit of the receiver, or zero if the
+	 receiver is zero. This method is allowed (and needed) for
+	LargeNegativeIntegers as well, since Squeak's LargeIntegers are
 	sign/magnitude. */
 
 function cDigitHighBitlen(pByte, len) {
@@ -338,7 +341,7 @@ function cDigitHighBitlen(pByte, len) {
 }
 
 
-/*	Answer the number of indexable fields of a CSmallInteger. This value is 
+/*	Answer the number of indexable fields of a CSmallInteger. This value is
 	   the same as the largest legal subscript. */
 
 function cDigitLengthOfCSI(csi) {
@@ -488,8 +491,8 @@ function cDigitMultiplylenwithleninto(pByteShort, shortLen, pByteLong, longLen, 
 }
 
 
-/*	Answer the value of an indexable field in the receiver.              
-	LargePositiveInteger uses bytes of base two number, and each is a       
+/*	Answer the value of an indexable field in the receiver.
+	LargePositiveInteger uses bytes of base two number, and each is a
 	      'digit' base 256. */
 /*	ST indexed! */
 
@@ -619,7 +622,7 @@ function cDigitSublenwithleninto(pByteSmall, smallLen, pByteLarge, largeLen, pBy
 }
 
 
-/*	Answer the index of the high order bit of the argument, or zero if the  
+/*	Answer the index of the high order bit of the argument, or zero if the
 	argument is zero. */
 /*	For 64 bit uints there could be added a 32-shift. */
 
@@ -701,7 +704,7 @@ function digitLshift(aBytesOop, shiftCount) {
 
 
 /*	Attention: this method invalidates all oop's! Only newBytes is valid at return. */
-/*	Shift right shiftCount bits, 0<=shiftCount.         
+/*	Shift right shiftCount bits, 0<=shiftCount.
 	Discard all digits beyond a, and all zeroes at or below a. */
 /*	Does not normalize. */
 
@@ -838,7 +841,7 @@ function digitBitLogicwithopIndex(firstInteger, secondInteger, opIx) {
 }
 
 
-/*	Compare the magnitude of firstInteger with that of secondInteger.      
+/*	Compare the magnitude of firstInteger with that of secondInteger.
 	Return a code of 1, 0, -1 for firstInteger >, = , < secondInteger */
 
 function digitCompareLargewith(firstInteger, secondInteger) {
@@ -1167,7 +1170,7 @@ function normalizeNegative(aLargeNegativeInteger) {
 		}
 		for (i = 1; i <= sLen; i++) {
 
-			/* If all digits same, then = minVal (sr: minVal digits 1 to 3 are 
+			/* If all digits same, then = minVal (sr: minVal digits 1 to 3 are
 				          0) */
 
 			if (digitOfBytesat(aLargeNegativeInteger, i) !== cDigitOfCSIat(minVal, i)) {
@@ -1270,9 +1273,9 @@ function primAnyBitFromTo() {
 }
 
 
-/*	Converts a SmallInteger into a - non normalized! - LargeInteger;          
+/*	Converts a SmallInteger into a - non normalized! - LargeInteger;
 	 aLargeInteger will be returned unchanged. */
-/*	Do not check for forced fail, because we need this conversion to test the 
+/*	Do not check for forced fail, because we need this conversion to test the
 	plugin in ST during forced fail, too. */
 
 function primAsLargeInteger() {
@@ -1438,7 +1441,7 @@ function primDigitAddWith() {
 }
 
 
-/*	Bit logic here is only implemented for positive integers or Zero; if rec 
+/*	Bit logic here is only implemented for positive integers or Zero; if rec
 	or arg is negative, it fails. */
 
 function primDigitBitAnd() {
@@ -1489,7 +1492,7 @@ function primDigitBitLogicWithOp() {
 }
 
 
-/*	Bit logic here is only implemented for positive integers or Zero; if rec 
+/*	Bit logic here is only implemented for positive integers or Zero; if rec
 	or arg is negative, it fails. */
 
 function primDigitBitOr() {
@@ -1594,7 +1597,7 @@ function primDigitBitShiftMagnitude() {
 }
 
 
-/*	Bit logic here is only implemented for positive integers or Zero; if rec 
+/*	Bit logic here is only implemented for positive integers or Zero; if rec
 	or arg is negative, it fails. */
 
 function primDigitBitXor() {
@@ -1791,8 +1794,8 @@ function primDigitCompareWith() {
 }
 
 
-/*	Answer the result of dividing firstInteger by secondInteger. 
-	Fail if parameters are not integers, not normalized or secondInteger is 
+/*	Answer the result of dividing firstInteger by secondInteger.
+	Fail if parameters are not integers, not normalized or secondInteger is
 	zero.  */
 
 function primDigitDivNegative() {

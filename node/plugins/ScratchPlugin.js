@@ -5,7 +5,10 @@
 	ScratchPlugin VMMaker-bf.353 uuid: 8ae25e7e-8d2c-451e-8277-598b30e9c002
  */
 
-module("users.bert.SqueakJS.plugins.ScratchPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
+var sqModule = require('../sqModule');
+var Squeak = require('../vm').Squeak;
+
+sqModule("users.bert.SqueakJS.plugins.ScratchPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;

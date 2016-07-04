@@ -5,7 +5,10 @@
 	JPEGReaderPlugin VMMaker-bf.353 uuid: 8ae25e7e-8d2c-451e-8277-598b30e9c002
  */
 
-module("users.bert.SqueakJS.plugins.JPEGReaderPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
+var sqModule = require('../sqModule');
+var Squeak = require('../vm').Squeak;
+
+sqModule("users.bert.SqueakJS.plugins.JPEGReaderPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;
@@ -77,13 +80,13 @@ var interpreterProxy = null;
 var jpegBits = null;
 var jpegBitsSize = 0;
 var jpegNaturalOrder = [
-	0, 1, 8, 16, 9, 2, 3, 10, 
-	17, 24, 32, 25, 18, 11, 4, 5, 
-	12, 19, 26, 33, 40, 48, 41, 34, 
-	27, 20, 13, 6, 7, 14, 21, 28, 
-	35, 42, 49, 56, 57, 50, 43, 36, 
-	29, 22, 15, 23, 30, 37, 44, 51, 
-	58, 59, 52, 45, 38, 31, 39, 46, 
+	0, 1, 8, 16, 9, 2, 3, 10,
+	17, 24, 32, 25, 18, 11, 4, 5,
+	12, 19, 26, 33, 40, 48, 41, 34,
+	27, 20, 13, 6, 7, 14, 21, 28,
+	35, 42, 49, 56, 57, 50, 43, 36,
+	29, 22, 15, 23, 30, 37, 44, 51,
+	58, 59, 52, 45, 38, 31, 39, 46,
 	53, 60, 61, 54, 47, 55, 62, 63
 ];
 var jsBitBuffer = 0;
