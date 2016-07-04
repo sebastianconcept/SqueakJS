@@ -893,18 +893,18 @@ try {
 var loop; // holds timeout for main loop
 
 SqueakJS.runImage = function(buffer, name, display, options) {
-    window.onbeforeunload = function(evt) {
-        var msg = SqueakJS.appName + ' is still running';
-        evt.returnValue = msg;
-        return msg;
-    };
-    window.clearTimeout(loop);
+    // window.onbeforeunload = function(evt) {
+    //     var msg = SqueakJS.appName + ' is still running';
+    //     evt.returnValue = msg;
+    //     return msg;
+    // };
+    clearTimeout(loop);
     display.reset();
     display.clear();
     display.showBanner("Loading " + SqueakJS.appName);
     display.showProgress(0);
     var self = this;
-    window.setTimeout(function() {
+    setTimeout(function() {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function() {
             display.quitFlag = false;
@@ -921,7 +921,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
                     else vm.interpret(50, function(ms) {
                         if (ms ==  'sleep') ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
-                        loop = window.setTimeout(run, ms);
+                        loop = setTimeout(run, ms);
                     });
                 } catch(error) {
                     console.error(error);
@@ -929,7 +929,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
                 }
             }
             display.runNow = function() {
-                window.clearTimeout(loop);
+                clearTimeout(loop);
                 run();
             };
             display.runFor = function(milliseconds) {
