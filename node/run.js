@@ -1,6 +1,6 @@
 // require('./sqModule');
 // var Squeak = require('./vm');
-var SqueakJS = require('./headless').SqueakJS;
+var SqueakJS = require('./headless');
 // console.log('Just imported Squeak ...', Squeak);
 console.log('Just imported SqueakJS ...', SqueakJS);
 
