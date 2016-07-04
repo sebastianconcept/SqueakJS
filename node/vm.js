@@ -1,8 +1,7 @@
-require('./sqModule');
+var sqModule = require('./sqModule');
 var os = require('os');
-var extend = require('extend');
 
-global.sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
+sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
 "use strict";
 /*
  * Copyright (c) 2013-2016 Bert Freudenberg
@@ -26,8 +25,12 @@ global.sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
  * THE SOFTWARE.
  */
 
+// console.log('users.bert.SqueakJS.vm -> SqueakJS', users.bert.SqueakJS);
+
 // shorter name for convenience
-global.Squeak = users.bert.SqueakJS.vm;
+var Squeak = users.bert.SqueakJS.vm;
+var SqueakJS = users.bert.SqueakJS;
+
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;
@@ -42,7 +45,35 @@ try {
   localStorage = {};
 }
 
-extend(Squeak,
+Object.extend = function(obj /* + more args */ ) {
+    // skip arg 0, copy properties of other args to obj
+    for (var i = 1; i < arguments.length; i++)
+        if (typeof arguments[i] == 'object')
+            for (var name in arguments[i])
+                obj[name] = arguments[i][name];
+};
+
+Function.prototype.subclass = function(classPath /* + more args */ ) {
+    // create subclass
+    var subclass = function() {
+        if (this.initialize) this.initialize.apply(this, arguments);
+        return this;
+    };
+    // set up prototype
+    var protoclass = function() { };
+    protoclass.prototype = this.prototype;
+    subclass.prototype = new protoclass();
+    // skip arg 0, copy properties of other args to prototype
+    for (var i = 1; i < arguments.length; i++)
+        Object.extend(subclass.prototype, arguments[i]);
+    // add class to module
+    var modulePath = classPath.split('.'),
+        className = modulePath.pop();
+    sqModule(modulePath.join('.'))[className] = subclass;
+    return subclass;
+};
+
+Object.extend(Squeak,
 'version', {
     // system attributes
     vmVersion: 'SqueakJS 0.8.3',
@@ -7104,4 +7135,10 @@ Object.subclass('Squeak.InstructionStream',
     }
 });
 
-}) // end of module
+module.exports = {
+  Squeak: Squeak,
+  SqueakJS: SqueakJS
+};
+
+}); // end of module
+

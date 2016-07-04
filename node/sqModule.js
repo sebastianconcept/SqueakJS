@@ -1,5 +1,5 @@
 // sounds like it doesn't need to be really global, we'll see...
-global.sqModule = function(dottedPath) {
+sqModule = function(dottedPath) {
     if (dottedPath === '') return global;
     var path = dottedPath.split('.'),
         name = path.pop(),
@@ -27,3 +27,5 @@ global.sqModule = function(dottedPath) {
     };
     return self;
 };
+
+module.exports = sqModule;

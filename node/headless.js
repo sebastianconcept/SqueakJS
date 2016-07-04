@@ -27,7 +27,8 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
-var Squeak = require('./vm');
+var Squeak = require('./vm').Squeak;
+var SqueakJS = require('./vm').SqueakJS;
 
 Object.extend = function(obj /* + more args */ ) {
     // skip arg 0, copy properties of other args to obj
@@ -890,7 +891,7 @@ try {
 
 var loop; // holds timeout for main loop
 
-global.SqueakJS.runImage = function(buffer, name, display, options) {
+SqueakJS.runImage = function(buffer, name, display, options) {
     window.onbeforeunload = function(evt) {
         var msg = SqueakJS.appName + ' is still running';
         evt.returnValue = msg;
@@ -979,7 +980,7 @@ function fetchTemplates(options) {
     }
 }
 
-global.SqueakJS.runSqueak = function(options) {
+SqueakJS.runSqueak = function(options) {
     SqueakJS.options = options;
     SqueakJS.appName = options.appName || 'SqueakJS';
     Squeak.fsck();
@@ -1044,16 +1045,16 @@ global.SqueakJS.runSqueak = function(options) {
         rq.send();
     }
     getNextFile(function whenAllDone(imageData) {
-       global.SqueakJS.runImage(imageData, options.root + imageName, display, options);
+      SqueakJS.runImage(imageData, options.root + imageName, display, options);
     });
     return display;
 };
 
-global.SqueakJS.quitSqueak = function() {
-    global.SqueakJS.vm.quitFlag = true;
+SqueakJS.quitSqueak = function() {
+  SqueakJS.vm.quitFlag = true;
 };
 
-global.SqueakJS.onQuit = function(vm, display, options) {
+SqueakJS.onQuit = function(vm, display, options) {
   console.log('SqueakJS.onQuit >> no-op');
     // window.onbeforeunload = null;
     // display.vm = null;
@@ -1061,6 +1062,8 @@ global.SqueakJS.onQuit = function(vm, display, options) {
     // if (options.onQuit) options.onQuit(vm, display, options);
     // else display.showBanner(SqueakJS.appName + " stopped.");
 };
+
+module.exports = SqueakJS;
 
 }); // end module
 
