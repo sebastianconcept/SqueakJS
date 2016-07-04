@@ -986,11 +986,14 @@ SqueakJS.runSqueak = function(options) {
     SqueakJS.appName = options.appName || 'SqueakJS';
     Squeak.fsck();
     fetchTemplates(options);
-    var display = createSqueakDisplay(canvas, options),
-        imageName = Squeak.splitFilePath(imageUrl).basename,
+    // var display = createSqueakDisplay(canvas, options),
+    // var imageName = Squeak.splitFilePath(imageUrl).basename,
+    var imageName = SqueakJS.appName   // using the appName for now...
         imageData = null,
-        baseUrl = imageUrl.replace(/[^\/]*$/, ""),
-        files = [{url: imageUrl, name: imageName}];
+        // baseUrl = imageUrl.replace(/[^\/]*$/, ""),
+        // files = [{url: imageUrl, name: imageName}];
+        files = options.files;
+
     if (options.files) {
         options.files.forEach(function(f) { if (f !== imageName) files.push({url: baseUrl + f, name: f}); });
     }
