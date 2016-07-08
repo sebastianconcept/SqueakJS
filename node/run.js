@@ -2,7 +2,10 @@
 // var Squeak = require('./vm');
 var SqueakJS = require('./headless');
 // console.log('Just imported Squeak ...', Squeak);
-console.log('Just imported SqueakJS ...', SqueakJS);
+
+if(!!SqueakJS) {
+  console.log('Just imported SqueakJS ...');
+}
 
 var runSqueak = function() {
   console.log('About to run SqueakJS ...');

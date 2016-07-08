@@ -68,6 +68,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
     //     squeakjs = scripts[scripts.length - 1],
     //     vmDir = squeakjs.src.replace(/[^\/]*$/, '');
     // if (squeakjs.src.match(/squeak\.min\.js$/)) return;
+
     [   './vm',
         './jit',
         './plugins/ADPCMCodecPlugin',
@@ -97,6 +98,7 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
         // script.setAttribute("src", vmDir + filename);
         // document.getElementsByTagName("head")[0].appendChild(script);
     });
+
 })();
 
 sqModule('SqueakJS').requires('users.bert.SqueakJS.vm').toRun(function() {
@@ -988,15 +990,17 @@ SqueakJS.runSqueak = function(options) {
     fetchTemplates(options);
     // var display = createSqueakDisplay(canvas, options),
     // var imageName = Squeak.splitFilePath(imageUrl).basename,
-    var imageName = SqueakJS.appName   // using the appName for now...
+    var imageName = SqueakJS.appName,   // using the appName for now...
         imageData = null,
         // baseUrl = imageUrl.replace(/[^\/]*$/, ""),
         // files = [{url: imageUrl, name: imageName}];
         files = options.files;
 
     if (options.files) {
-        options.files.forEach(function(f) { if (f !== imageName) files.push({url: baseUrl + f, name: f}); });
+        options.files.forEach(function(f) { if (f !== imageName) files.push({path: __dirname +'/' + f, name: f}); });
     }
+    console.log('files',options);
+
     if (options.document) {
         var docName = Squeak.splitFilePath(options.document).basename;
         files.push({url: options.document, name: docName, forceDownload: options.forceDownload !== false});
