@@ -1002,6 +1002,8 @@ SqueakJS.runSqueak = function(options) {
         files.push({url: options.document, name: docName, forceDownload: options.forceDownload !== false});
         display.documentName = options.root + docName;
     }
+
+     // to-do: this needs to be reimplemented without downloads but local file reads...
     function getNextFile(whenAllDone) {
         if (files.length === 0) return whenAllDone(imageData);
         var file = files.shift(),
@@ -1019,7 +1021,7 @@ SqueakJS.runSqueak = function(options) {
             } else getNextFile(whenAllDone);
             return;
         }
-        display.showBanner("Downloading " + file.name);
+        // display.showBanner("Downloading " + file.name);
         var rq = new XMLHttpRequest();
         rq.open('GET', file.url);
         rq.responseType = 'arraybuffer';
