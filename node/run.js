@@ -7,11 +7,10 @@ if(!!SqueakJS) {
   console.log('Just imported SqueakJS ...');
 }
 
-var runSqueak = function() {
+var runSqueak = function (imageName) {
   console.log('About to run SqueakJS ...');
   SqueakJS.runSqueak({
-    // appName: 'SqueakJS',
-    files: ['squeakjs.image', 'squeakjs.changes']
+    imageName: imageName
   });
 };
 

@@ -27,6 +27,7 @@
 // just enough so the loading of vm.js succeeds
 //////////////////////////////////////////////////////////////////////////////
 
+var fs = require('fs');
 var Squeak = require('./vm').Squeak;
 var SqueakJS = require('./vm').SqueakJS;
 
@@ -901,10 +902,10 @@ SqueakJS.runImage = function(buffer, name, display, options) {
     //     return msg;
     // };
     clearTimeout(loop);
-    display.reset();
-    display.clear();
-    display.showBanner("Loading " + SqueakJS.appName);
-    display.showProgress(0);
+    // display.reset();
+    // display.clear();
+    // display.showBanner("Loading " + SqueakJS.appName);
+    // display.showProgress(0);
     var self = this;
     setTimeout(function() {
         var image = new Squeak.Image(name);
@@ -983,23 +984,23 @@ function fetchTemplates(options) {
     }
 }
 
-SqueakJS.runSqueak = function(options) {
+SqueakJS.runSqueak = function (options) {
     SqueakJS.options = options;
     SqueakJS.appName = options.appName || 'SqueakJS';
     Squeak.fsck();
     fetchTemplates(options);
     // var display = createSqueakDisplay(canvas, options),
     // var imageName = Squeak.splitFilePath(imageUrl).basename,
-    var imageName = SqueakJS.appName,   // using the appName for now...
-        imageData = null,
+    // var imageName = SqueakJS.appName,   // using the appName for now...
+    var imageData = null;
         // baseUrl = imageUrl.replace(/[^\/]*$/, ""),
         // files = [{url: imageUrl, name: imageName}];
-        files = options.files;
+    options.files = [ options.imageName + '.image', options.imageName + '.changes'];
 
     if (options.files) {
-        options.files.forEach(function(f) { if (f !== imageName) files.push({path: __dirname +'/' + f, name: f}); });
+        options.files.forEach(function(f) { if (f !== options.imageName) options.files.push({path: __dirname +'/' + f, name: f}); });
     }
-    console.log('files',options);
+    console.log('options',options);
 
     if (options.document) {
         var docName = Squeak.splitFilePath(options.document).basename;
@@ -1008,56 +1009,67 @@ SqueakJS.runSqueak = function(options) {
     }
 
      // to-do: this needs to be reimplemented without downloads but local file reads...
-    function getNextFile(whenAllDone) {
-        if (files.length === 0) return whenAllDone(imageData);
-        var file = files.shift(),
-            forceDownload = options.forceDownload || file.forceDownload;
-        if (!forceDownload && Squeak.fileExists(options.root + file.name)) {
-            if (file.name == imageName) {
-                Squeak.fileGet(options.root + file.name, function(data) {
-                    imageData = data;
-                    getNextFile(whenAllDone);
-                }, function onError() {
-                    Squeak.fileDelete(options.root + file.name);
-                    files.unshift(file);
-                    getNextFile(whenAllDone);
-                });
-            } else getNextFile(whenAllDone);
-            return;
-        }
-        // display.showBanner("Downloading " + file.name);
-        var rq = new XMLHttpRequest();
-        rq.open('GET', file.url);
-        rq.responseType = 'arraybuffer';
-        rq.onprogress = function(e) {
-            if (e.lengthComputable) display.showProgress(e.loaded / e.total);
-        };
-        rq.onload = function(e) {
-            if (this.status == 200) {
-                if (file.name == imageName) {imageData = this.response;}
-                Squeak.filePut(options.root + file.name, this.response, function() {
-                    getNextFile(whenAllDone);
-                });
-            }
-            else this.onerror(this.statusText);
-        };
-        rq.onerror = function(e) {
-            console.warn('Retrying with CORS proxy: ' + file.url);
-            var proxy = options.proxy || 'https://crossorigin.me/',
-                retry = new XMLHttpRequest();
-            retry.open('GET', proxy + file.url);
-            retry.responseType = rq.responseType;
-            retry.onprogress = rq.onprogress;
-            retry.onload = rq.onload;
-            retry.onerror = function() {alert("Failed to download:\n" + file.url)};
-            retry.send();
-        };
-        rq.send();
-    }
-    getNextFile(function whenAllDone(imageData) {
+    // function getNextFile(whenAllDone) {
+    //     if (files.length === 0) return whenAllDone(imageData);
+    //     var file = files.shift(),
+    //         forceDownload = options.forceDownload || file.forceDownload;
+    //     if (!forceDownload && Squeak.fileExists(options.root + file.name)) {
+    //         if (file.name == imageName) {
+    //             Squeak.fileGet(options.root + file.name, function(data) {
+    //                 imageData = data;
+    //                 getNextFile(whenAllDone);
+    //             }, function onError() {
+    //                 Squeak.fileDelete(options.root + file.name);
+    //                 files.unshift(file);
+    //                 getNextFile(whenAllDone);
+    //             });
+    //         } else getNextFile(whenAllDone);
+    //         return;
+    //     }
+    //     // display.showBanner("Downloading " + file.name);
+    //     var rq = new XMLHttpRequest();
+    //     rq.open('GET', file.url);
+    //     rq.responseType = 'arraybuffer';
+    //     rq.onprogress = function(e) {
+    //         if (e.lengthComputable) display.showProgress(e.loaded / e.total);
+    //     };
+    //     rq.onload = function(e) {
+    //         if (this.status == 200) {
+    //             if (file.name == imageName) {imageData = this.response;}
+    //             Squeak.filePut(options.root + file.name, this.response, function() {
+    //                 getNextFile(whenAllDone);
+    //             });
+    //         }
+    //         else this.onerror(this.statusText);
+    //     };
+    //     rq.onerror = function(e) {
+    //         console.warn('Retrying with CORS proxy: ' + file.url);
+    //         var proxy = options.proxy || 'https://crossorigin.me/',
+    //             retry = new XMLHttpRequest();
+    //         retry.open('GET', proxy + file.url);
+    //         retry.responseType = rq.responseType;
+    //         retry.onprogress = rq.onprogress;
+    //         retry.onload = rq.onload;
+    //         retry.onerror = function() {alert("Failed to download:\n" + file.url)};
+    //         retry.send();
+    //     };
+    //     rq.send();
+    // }
+
+    // We don't need to get files in node because is all local.
+    console.log('============ imageName', options.imageName, options.files);
+    const absoluteImageFilename = options.files.find(function(each){
+      return each.name === options.imageName+'.image';
+    }).path;
+    console.log('============ absoluteImageFilename', absoluteImageFilename);
+
+    fs.readFile(absoluteImageFilename, function onDone(error, imageData) {
+      console.log('ABOUT TO >> SqueakJS.runImage', imageData);
+      var display = null;
       SqueakJS.runImage(imageData, options.root + imageName, display, options);
     });
-    return display;
+
+
 };
 
 SqueakJS.quitSqueak = function() {
