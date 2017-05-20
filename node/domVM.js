@@ -2277,24 +2277,7 @@ Object.subclass('Squeak.Interpreter',
         }
         throw Error("not a bytecode: " + b);
     },
-    interpret: function() {
-        // run until idle or break
-        // Answers the result.
-        this.isIdle = false;
-        this.breakOutOfInterpreter = false;
-
-        while (this.breakOutOfInterpreter === false)
-            if (this.method.compiled) {
-                this.byteCodeCount += this.method.compiled(this);
-            } else {
-                this.interpretOne();
-            }
-
-        // normally, we answer regularly
-        var result = this.breakOutOfInterpreter === 'break' ? 'break' : this.isIdle 
-        return result;
-    },
-    interpretThenDo: function(forMilliseconds, thenDo) {
+    interpret: function(forMilliseconds, thenDo) {
         // run for a couple milliseconds (but only until idle or break)
         // answer milliseconds to sleep (until next timer wakeup)
         // or 'break' if reached breakpoint
@@ -7158,3 +7141,4 @@ module.exports = {
 };
 
 }); // end of module
+
