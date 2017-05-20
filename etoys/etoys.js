@@ -24,7 +24,7 @@ var fullscreen = navigator.standalone ||
     window.matchMedia('(max-device-width: 800px) and (max-device-height: 800px)').matches;
 
 window.onload = function() {
-    var url = "http://freudenbergs.de/bert/squeakjs/etoys.image";
+    var url = "https://freudenbergs.de/bert/squeakjs/etoys.image";
     SqueakJS.runSqueak(url, sqCanvas, {
         appName: "Etoys",
         fixedWidth: 1200,
@@ -33,12 +33,9 @@ window.onload = function() {
         header: sqHeader,
         footer: sqFooter,
         spinner: sqSpinner,
+        files: ["Etoys/EtoysV5.stc"],
         root: "/Etoys",
-        templates: {
-            "ExampleEtoys": "http://freudenbergs.de/bert/squeakjs/Etoys/ExampleEtoys",
-            "fonts":        "http://freudenbergs.de/bert/squeakjs/Etoys/fonts",
-            "locale":       "http://freudenbergs.de/bert/squeakjs/Etoys/locale",
-        },
+        templates: { "/Etoys": "Etoys" },
     });
 };
 

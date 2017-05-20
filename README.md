@@ -1,6 +1,8 @@
 SqueakJS: A Squeak VM for the Web
 =================================
 
+[![Build Status](https://travis-ci.org/bertfreudenberg/SqueakJS.svg?branch=master)](https://travis-ci.org/bertfreudenberg/SqueakJS)
+
 SqueakJS is an HTML5 runtime engine for [Squeak][squeak]</a> Smalltalk written in pure JavaScript by Bert Freudenberg.
 
 The interpreter core is in "vm.js" and plugins are in the "plugins" directory. The Just-in-Time compiler is optional ("jit.js") and can be easily replaced with your own. There are two user interfaces: the regular HTML interface lets you use SqueakJS on your own web page. Just include "squeak.js". The other interface provides a visual debugger implemented also in JavaScript using [Lively][lively]. This does not use "squeak.js" but reimplements the UI in Lively Morphic.
@@ -73,13 +75,13 @@ Contributions are very welcome!
 
 Things to work on
 -----------------
-SqueakJS is intended to run any Squeak image. It can already load anything from the original 1996 Squeak release to the latest 2014 release. But various pieces (primitives in various plugins) are still missing, in particular media support (MIDI, 3D graphics) and networking (Socket plugin). Also, it would be nice to make it work on as many browsers as possible, especially on mobile touch devices.
+SqueakJS is intended to run any Squeak image. It can already load anything from the original 1996 Squeak release to the latest 2016 release. But various pieces (primitives in various plugins) are still missing, in particular media support (MIDI, 3D graphics). Also, it would be nice to make it work on as many browsers as possible, especially on mobile touch devices.
 
 As for optimizing I think the way to go is an optimizing JIT compiler. The current JIT is very simple and does not optimize at all. Since we can't access or manipulate the JavaScript stack, we might want that compiler to inline as much as possible, but keep the call sequence flat so we can return to the browser at any time. Even better (but potentially more complicated) is actually using the JavaScript stack, just like Eliot's Stack VM uses the C stack. To make BitBlt fast, we could probably use WebGL.
 
 To make SqueakJS useful beyond running existing Squeak images, we should use the JavaScript bridge to write a native HTML UI which would certainly be much faster than BitBlt.
 
-Networking would be interesting, too. How about implementing the SocketPlugin via WebSockets? Parallelize the VM with WebWorkers?
+Better Networking would be interesting, too. The SocketPlugin currently only allows HTTP requests. How about implementing it more generally via WebSockets? Parallelize the VM with WebWorkers?
 
 There's a gazillion exciting things to do :)
 
@@ -101,6 +103,12 @@ There's a gazillion exciting things to do :)
 
 Changelog
 ---------
+    2016-11-08: 0.9.5 more fixes
+    2016-10-20: 0.9.4 fixes
+    2016-09-08: 0.9.3 add partial GC (5x faster become / allInstances)
+    2016-08-25: 0.9.2 add keyboard on iOS
+    2016-08-03: 0.9.1 fixes
+    2016-07-29: 0.9 Spur support, stdout, SpeechPlugin, zipped images
     2016-06-28: 0.8.3 add SocketPlugin for http/https connections
     2016-04-07: 0.8.2 better touch handling, debugging, CORS, lint
     2016-01-08: 0.8.1 windows keyboard fixes, 'new' operator fixed

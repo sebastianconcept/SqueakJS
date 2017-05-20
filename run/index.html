@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>SqueakJS</title>
+<meta name="viewport" content="minimum-scale=1,maximum-scale=1,width=device-width">
 <link rel="icon" type="image/png" href="squeakjs.png">
 <link rel="stylesheet" href="../lib/gh-fork-ribbon.css">
 <link rel="stylesheet" href="squeakjs.css">
@@ -15,6 +16,13 @@
             fullscreen: true,
             spinner: sqSpinner,
             appName: imageName && imageName.replace(/\.image$/, ""),
+            onQuit: function(vm, display, options) {
+                display.showBanner(SqueakJS.appName + " stopped.");
+                setTimeout(function() {
+                    location.hash = ""; //  show index page
+                    location.href = location.href.replace(/\?.*/, "");
+                }, 0);
+            },
         });
     }
     function exportFile(a) {
@@ -36,7 +44,9 @@
         var imgList = [],
             fileList = [],
             dirs = [''],
-            nFiles = nDirs = nBytes = 0;
+            nFiles = 0,
+            nDirs = 0,
+            nBytes = 0;
         while (dirs.length > 0) {
             var dir = dirs.pop(),
                 entries = Squeak.dirList(dir);
@@ -52,7 +62,7 @@
                     nFiles++;
                     nBytes += entry[4];
                     fileList.push('<li><a href="squeak:' + path + '" onclick="return exportFile(this)" target="_blank">' + path + '</a>' +
-                        (entry[4] >= 100000 ? ' (' + (entry[4]/1000000).toFixed(1) + ' MB)' 
+                        (entry[4] >= 100000 ? ' (' + (entry[4]/1000000).toFixed(1) + ' MB)'
                         : ' (' + (entry[4]/1000).toFixed(1) + ' KB)') + '</li>');
                 }
             };
@@ -63,16 +73,16 @@
             files.innerHTML = "<ul>" + fileList.sort(fsort).join("") + "</ul>";
             filestats.innerHTML = nFiles + " files in " + nDirs + " directories, " +
                 (nBytes/1000000).toFixed(1) + " MBytes total";
-        }          
-        if (imgList.length) images.innerHTML = "<p>Previously run local images:</p><ul>" + imgList.sort(fsort).join("") + "</ul>";
+        }
+        if (imgList.length) images.innerHTML = "<p>Select a local image to run:</p><ul>" + imgList.sort(fsort).join("") + "</ul>";
         else images.innerHTML = "<ul>[Once you have dropped local images to this page they will be listed here.]</ul>"
     }
     window.onhashchange = function() {
         window.location.reload();
     }
     window.onload = function() {
-        // if we have an image in hash then we just run Squeak with the options provided in the url
-        if (location.hash.match(/\.image(\W|$)/)) {
+        // if we have an image or zip in hash then we run Squeak with the options provided in the url
+        if ((location.hash || location.search).match(/(\.image(\W|$)|\Wzip=)/)) {
             return runSqueak();
         }
         // otherwise, we generate the text to display
@@ -127,7 +137,7 @@
                     });
                 }
                 reader.onerror = function() {
-                    alert("Failed to read " + f.name); 
+                    alert("Failed to read " + f.name);
                     drop.style.borderColor = "";
                 }
                 reader.readAsArrayBuffer(f);
@@ -163,13 +173,15 @@
         <h2>Run Squeak images from the internet</h2>
         Construct a URL linking to this page and pass the image and options.
         <em>Beware that the server needs to allow script access via <a href="http://enable-cors.org/server.html" target="_blank">CORS</a>.</em>
-        <br>Here are a few examples with files I copied to my own web server:
+        <br>Here are a few examples:
         <ul>
-        <li>Squeak 1.13 (1996) <a href="#url=http://freudenbergs.de/bert/squeakjs&files=[Squeak1.13u.image,Squeak1.13u.changes,SqueakV1.sources]&swapButtons=true">link</a></li>
-        <li>Squeak 2.8 (2000) <a href="#url=http://freudenbergs.de/bert/squeakjs&files=[Squeak2.8.image,Squeak2.8.changes,SqueakV2.sources]&swapButtons=true">link</a></li>
-        <li>Squeak 3.8 (2006) <a href="#url=http://freudenbergs.de/bert/squeakjs&files=[Squeak3.8.1-6747full.image,Squeak3.8.1-6747full.changes,SqueakV3.sources]&swapButtons=true">link</a></li>
-        <li>Squeak 3.9 (2008) <a href="#url=http://freudenbergs.de/bert/squeakjs&files=[Squeak3.9.1-final-7075.image,Squeak3.9.1-final-7075.changes,SqueakV39.sources]&swapButtons=true">link</a></li>
-        <li>Squeak 4.5 (2014) <a href="#url=http://freudenbergs.de/bert/squeakjs&files=[Squeak4.5-13680.image,Squeak4.5-13680.changes,SqueakV41.sources]">link</a></li>
+        <li>Squeak 1.13 (1996) <a href="#url=https://freudenbergs.de/bert/squeakjs&files=[Squeak1.13u.image,Squeak1.13u.changes,SqueakV1.sources]&swapButtons=true">link</a></li>
+        <li>Squeak 2.8 (2000) <a href="#url=https://freudenbergs.de/bert/squeakjs&files=[Squeak2.8.image,Squeak2.8.changes,SqueakV2.sources]&swapButtons=true">link</a></li>
+        <li>Squeak 3.8 (2006) <a href="#url=https://freudenbergs.de/bert/squeakjs&files=[Squeak3.8.1-6747full.image,Squeak3.8.1-6747full.changes,SqueakV3.sources]&swapButtons=true">link</a></li>
+        <li>Squeak 3.9 (2008) <a href="#url=https://freudenbergs.de/bert/squeakjs&files=[Squeak3.9.1-final-7075.image,Squeak3.9.1-final-7075.changes,SqueakV39.sources]&swapButtons=true">link</a></li>
+        <li>Squeak 4.5 (2014) <a href="#url=https://freudenbergs.de/bert/squeakjs&files=[Squeak4.5-13680.image,Squeak4.5-13680.changes,SqueakV41.sources]">link</a></li>
+        <li>Squeak 5.0 (2015) <a href="#url=https://freudenbergs.de/bert/squeakjs&zip=[Squeak5.0-15113.zip,SqueakV50.sources.zip]">link</a></li>
+        <li>SpeechPlugin Demo (2016) <a href="#zip=https://www.hpi.uni-potsdam.de/hirschfeld/artefacts/squeakjs/SpeechPluginDemo.zip">link</a></li>
         </ul>
         On the first run these will be stored locally. Subsequent starts are much faster.
 
@@ -222,10 +234,10 @@
 
         <h2>Contribute to SqueakJS</h2>
         SqueakJS is free software (MIT license).
-        You're very welcome to <a href="http://lists.squeakfoundation.org/mailman/listinfo/vm-dev">discuss</a>, 
+        You're very welcome to <a href="http://lists.squeakfoundation.org/mailman/listinfo/vm-dev">discuss</a>,
         <a href="https://github.com/bertfreudenberg/SqueakJS/issues">report bugs</a>,
         and <a href="https://github.com/bertfreudenberg/SqueakJS/">contribute code</a>.
-        
+
         <p>Have fun! — Bert Freudenberg</p>
     </div>
     <canvas id="sqCanvas"></canvas>

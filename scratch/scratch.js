@@ -24,7 +24,7 @@ var fullscreen = navigator.standalone ||
     window.matchMedia('(max-device-width: 800px) and (max-device-height: 800px)').matches;
 
 window.onload = function() {
-    var url = "http://freudenbergs.de/bert/squeakjs/scratch/Scratch.image";
+    var url = "https://freudenbergs.de/bert/squeakjs/scratch/Scratch.image";
     SqueakJS.runSqueak(url, sqCanvas, {
         appName: "Scratch",
         fullscreen: fullscreen,
@@ -33,12 +33,7 @@ window.onload = function() {
         spinner: sqSpinner,
         fullscreenCheckbox: sqFullscreen,
         root: "/Scratch",
-        templates: {
-            "Projects": "http://freudenbergs.de/bert/squeakjs/scratch/Projects",
-            "Media":    "http://freudenbergs.de/bert/squeakjs/scratch/Media",
-            "Help":     "http://freudenbergs.de/bert/squeakjs/scratch/Help",
-            "locale":   "http://freudenbergs.de/bert/squeakjs/scratch/locale",
-        },
+        templates: ["Projects", "Media", "Help", "locale"],
     });
 };
 

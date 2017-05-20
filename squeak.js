@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 
-"use strict";    
+"use strict";
 
 //////////////////////////////////////////////////////////////////////////////
 // these functions fake the Lively module and class system
@@ -110,11 +110,13 @@ Function.prototype.subclass = function(classPath /* + more args */ ) {
         "plugins/MiscPrimitivePlugin.js",
         "plugins/ScratchPlugin.js",
         "plugins/SocketPlugin.js",
+        "plugins/SpeechPlugin.js",
         "plugins/SqueakSSL.js",
         "plugins/SoundGenerationPlugin.js",
         "plugins/StarSqueakPlugin.js",
         "plugins/ZipPlugin.js",
         "lib/lz-string.js",
+        "lib/jszip.js",
     ].forEach(function(filename) {
         var script = document.createElement('script');
         script.setAttribute("type","text/javascript");
@@ -176,9 +178,9 @@ function setupFullscreen(display, canvas, options) {
         if (options.fullscreenCheckbox) options.fullscreenCheckbox.checked = fullscreen;
         setTimeout(window.onresize, 0);
     }
-    
+
     var checkFullscreen;
-    
+
     if (box.requestFullscreen) {
         document.addEventListener(fullscreenEvent, function(){fullscreenChange(box == document[fullscreenElement]);});
         checkFullscreen = function() {
@@ -236,8 +238,10 @@ var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
 function updateMousePos(evt, canvas, display) {
     var evtX = canUseMouseOffset ? evt.offsetX : evt.layerX,
         evtY = canUseMouseOffset ? evt.offsetY : evt.layerY;
-    display.cursorCanvas.style.left = (evtX + canvas.offsetLeft + display.cursorOffsetX) + "px";
-    display.cursorCanvas.style.top = (evtY + canvas.offsetTop + display.cursorOffsetY) + "px";
+    if (display.cursorCanvas) {
+        display.cursorCanvas.style.left = (evtX + canvas.offsetLeft + display.cursorOffsetX) + "px";
+        display.cursorCanvas.style.top = (evtY + canvas.offsetTop + display.cursorOffsetY) + "px";
+    }
     var x = (evtX * canvas.width / canvas.offsetWidth) | 0,
         y = (evtY * canvas.height / canvas.offsetHeight) | 0;
     // clamp to display size
@@ -362,7 +366,7 @@ function createSqueakDisplay(canvas, options) {
         keys: [],
         clipboardString: '',
         clipboardStringChanged: false,
-        cursorCanvas: document.createElement("canvas"),
+        cursorCanvas: options.cursor !== false && document.createElement("canvas"),
         cursorOffsetX: 0,
         cursorOffsetY: 0,
         droppedFiles: [],
@@ -372,7 +376,7 @@ function createSqueakDisplay(canvas, options) {
     setupSwapButtons(options);
     if (options.pixelated) {
         canvas.classList.add("pixelated");
-        display.cursorCanvas.classList.add("pixelated");
+        display.cursorCanvas && display.cursorCanvas.classList.add("pixelated");
     }
 
     var eventQueue = null;
@@ -424,7 +428,9 @@ function createSqueakDisplay(canvas, options) {
         var ctx = display.context;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = style.color || "#F90";
-        ctx.font = style.font || 'bold 48px sans-serif';
+        ctx.font = style.font || "bold 48px sans-serif";
+        if (!style.font && ctx.measureText(msg).width > canvas.width)
+            ctx.font = "bold 24px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
@@ -524,19 +530,22 @@ function createSqueakDisplay(canvas, options) {
         canvas.style.top = (t|0) + "px";
         canvas.style.width = (w|0) + "px";
         canvas.style.height = (h|0) + "px";
-        cursorCanvas.style.left = (l + display.cursorOffsetX + display.mouseX * scale|0) + "px";
-        cursorCanvas.style.top = (t + display.cursorOffsetY + display.mouseY * scale|0) + "px";
-        cursorCanvas.style.width = (cursorCanvas.width * scale|0) + "px";
-        cursorCanvas.style.height = (cursorCanvas.height * scale|0) + "px";
+        if (cursorCanvas) {
+            cursorCanvas.style.left = (l + display.cursorOffsetX + display.mouseX * scale|0) + "px";
+            cursorCanvas.style.top = (t + display.cursorOffsetY + display.mouseY * scale|0) + "px";
+            cursorCanvas.style.width = (cursorCanvas.width * scale|0) + "px";
+            cursorCanvas.style.height = (cursorCanvas.height * scale|0) + "px";
+        }
         if (!options.pixelated) {
             if (scale >= 3) {
                 canvas.classList.add("pixelated");
-                display.cursorCanvas.classList.add("pixelated");
+                cursorCanvas && cursorCanvas.classList.add("pixelated");
             } else {
                 canvas.classList.remove("pixelated");
-                display.cursorCanvas.classList.remove("pixelated");
+                cursorCanvas && display.cursorCanvas.classList.remove("pixelated");
             }
         }
+        return scale;
     }
     // zooming/panning with two fingers
     var maxZoom = 5;
@@ -584,7 +593,11 @@ function createSqueakDisplay(canvas, options) {
         h = touch.orig.height * w / touch.orig.width;
         l = Math.max(Math.min(l, touch.orig.left), touch.orig.right - w);
         t = Math.max(Math.min(t, touch.orig.top), touch.orig.bottom - h);
-        adjustDisplay(l, t, w, h);
+        var scale = adjustDisplay(l, t, w, h);
+        if ((scale - display.initialScale) < 0.0001) {
+            touch.orig = null;
+            window.onresize();
+        }
     }
     // State machine to distinguish between 1st/2nd mouse button and zoom/pan:
     // * if moved, or no 2nd finger within 100ms of 1st down, start mousing
@@ -592,7 +605,7 @@ function createSqueakDisplay(canvas, options) {
     // * if touch ended within this time, generate click (down+up)
     // * otherwise, start mousing with 2nd button
     // When mousing, always generate a move event before down event so that
-    // mouseover eventhandlers in image work better 
+    // mouseover eventhandlers in image work better
     canvas.ontouchstart = function(evt) {
         evt.preventDefault();
         var e = touchToMouse(evt);
@@ -633,7 +646,7 @@ function createSqueakDisplay(canvas, options) {
         evt.preventDefault();
         var e = touchToMouse(evt);
         switch (touch.state) {
-            case 'got1stFinger': 
+            case 'got1stFinger':
                 touch.state = 'mousing';
                 touch.button = e.button = 0;
                 recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
@@ -662,7 +675,7 @@ function createSqueakDisplay(canvas, options) {
                     touch.state = 'idle';
                     recordMouseEvent('mouseup', e, canvas, display, eventQueue, options);
                     return;
-                case 'got1stFinger': 
+                case 'got1stFinger':
                     touch.state = 'idle';
                     touch.button = e.button = 0;
                     recordMouseEvent('mousemove', e, canvas, display, eventQueue, options);
@@ -687,13 +700,16 @@ function createSqueakDisplay(canvas, options) {
         canvas.ontouchend(evt);
     };
     // cursorCanvas shows Squeak cursor
-    display.cursorCanvas.style.display = "block";
-    display.cursorCanvas.style.position = "absolute";
-    display.cursorCanvas.style.cursor = "none";
-    display.cursorCanvas.style.background = "transparent";
-    display.cursorCanvas.style.pointerEvents = "none";
-    canvas.parentElement.appendChild(display.cursorCanvas);
-    canvas.style.cursor = "none";
+    if (display.cursorCanvas) {
+        var absolute = window.getComputedStyle(canvas).position === "absolute";
+        display.cursorCanvas.style.display = "block";
+	    display.cursorCanvas.style.position = absolute ? "absolute": "fixed";
+        display.cursorCanvas.style.cursor = "none";
+        display.cursorCanvas.style.background = "transparent";
+        display.cursorCanvas.style.pointerEvents = "none";
+        canvas.parentElement.appendChild(display.cursorCanvas);
+        canvas.style.cursor = "none";
+    }
     // keyboard stuff
     document.onkeypress = function(evt) {
         if (!display.vm) return true;
@@ -713,6 +729,7 @@ function createSqueakDisplay(canvas, options) {
             9: 9,   // Tab
             13: 13, // Return
             27: 27, // Escape
+            32: 32, // Space
             33: 11, // PageUp
             34: 12, // PageDown
             35: 4,  // End
@@ -762,6 +779,23 @@ function createSqueakDisplay(canvas, options) {
         display.executeClipboardPaste(text, evt.timeStamp);
         evt.preventDefault();
     };
+    // touch keyboard button
+    if ('ontouchstart' in document) {
+        var keyboardButton = document.createElement('div');
+        keyboardButton.innerHTML = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg width="50px" height="50px" viewBox="0 0 150 150" version="1.1" xmlns="http://www.w3.org/2000/svg"><g id="Page-1" stroke="none" fill="#000000"><rect x="33" y="105" width="10" height="10" rx="1"></rect><rect x="26" y="60" width="10" height="10" rx="1"></rect><rect x="41" y="60" width="10" height="10" rx="1"></rect><rect x="56" y="60" width="10" height="10" rx="1"></rect><rect x="71" y="60" width="10" height="10" rx="1"></rect><rect x="86" y="60" width="10" height="10" rx="1"></rect><rect x="101" y="60" width="10" height="10" rx="1"></rect><rect x="116" y="60" width="10" height="10" rx="1"></rect><rect x="108" y="105" width="10" height="10" rx="1"></rect><rect x="33" y="75" width="10" height="10" rx="1"></rect><rect x="48" y="75" width="10" height="10" rx="1"></rect><rect x="63" y="75" width="10" height="10" rx="1"></rect><rect x="78" y="75" width="10" height="10" rx="1"></rect><rect x="93" y="75" width="10" height="10" rx="1"></rect><rect x="108" y="75" width="10" height="10" rx="1"></rect><rect x="41" y="90" width="10" height="10" rx="1"></rect><rect x="26" y="90" width="10" height="10" rx="1"></rect><rect x="56" y="90" width="10" height="10" rx="1"></rect><rect x="71" y="90" width="10" height="10" rx="1"></rect><rect x="86" y="90" width="10" height="10" rx="1"></rect><rect x="101" y="90" width="10" height="10" rx="1"></rect><rect x="116" y="90" width="10" height="10" rx="1"></rect><rect x="48" y="105" width="55" height="10" rx="1"></rect><path d="M20.0056004,51 C18.3456532,51 17.0000001,52.3496496 17.0000001,54.0038284 L17.0000001,85.6824519 L17,120.003453 C17.0000001,121.6584 18.3455253,123 20.0056004,123 L131.9944,123 C133.654347,123 135,121.657592 135,119.997916 L135,54.0020839 C135,52.3440787 133.654475,51 131.9944,51 L20.0056004,51 Z" fill="none" stroke="#000000" stroke-width="2"></path><path d="M52.0410156,36.6054687 L75.5449219,21.6503905 L102.666016,36.6054687" id="Line" stroke="#000000" stroke-width="3" stroke-linecap="round" fill="none"></path></g></svg>';
+        keyboardButton.setAttribute('style', 'position:fixed;right:0;bottom:0;background-color:rgba(128,128,128,0.5);border-radius:5px');
+        canvas.parentElement.appendChild(keyboardButton);
+        keyboardButton.onmousedown = function(evt) {
+            canvas.contentEditable = true;
+            canvas.setAttribute('autocomplete', 'off');
+            canvas.setAttribute('autocorrect', 'off');
+            canvas.setAttribute('autocapitalize', 'off');
+            canvas.setAttribute('spellcheck', 'off');
+            canvas.focus();
+            evt.preventDefault();
+        }
+        keyboardButton.ontouchstart = keyboardButton.onmousedown
+    }
     // do not use addEventListener, we want to replace any previous drop handler
     function dragEventHasFiles(evt) {
         for (var i = 0; i < evt.dataTransfer.types.length; i++)
@@ -803,7 +837,7 @@ function createSqueakDisplay(canvas, options) {
                     image = buffer;
                     imageName = f.name;
                 }
-                if (loaded.length == files.length) {                
+                if (loaded.length == files.length) {
                     if (image) {
                         SqueakJS.appName = imageName.slice(0, -6);
                         SqueakJS.runImage(image, imageName, display, options);
@@ -841,8 +875,14 @@ function createSqueakDisplay(canvas, options) {
             paddingY = 0;
         // above are the default values for laying out the canvas
         if (!options.fixedWidth) { // set canvas resolution
-            display.width = w;
-            display.height = h;
+            if (!options.minWidth) options.minWidth = 700;
+            if (!options.minHeight) options.minHeight = 700;
+            var scaleW = w < options.minWidth ? options.minWidth / w : 1,
+                scaleH = h < options.minHeight ? options.minHeight / h : 1,
+                scale = Math.max(scaleW, scaleH);
+            display.width = Math.floor(w * scale);
+            display.height = Math.floor(h * scale);
+            display.initialScale = w / display.width;
         } else { // fixed resolution and aspect ratio
             display.width = options.fixedWidth;
             display.height = options.fixedHeight;
@@ -853,6 +893,7 @@ function createSqueakDisplay(canvas, options) {
             } else {
                 paddingY = h - Math.floor(w / wantRatio);
             }
+            display.initialScale = (w - paddingX) / display.width;
         }
         // set size and position
         canvas.style.left = (x + Math.floor(paddingX / 2)) + "px";
@@ -868,7 +909,7 @@ function createSqueakDisplay(canvas, options) {
             if (imgData) display.context.putImageData(imgData, 0, 0);
         }
         // set cursor scale
-        if (options.fixedWidth) {
+        if (display.cursorCanvas && options.fixedWidth) {
             var cursorCanvas = display.cursorCanvas,
                 scale = canvas.offsetWidth / canvas.width;
             cursorCanvas.style.width = (cursorCanvas.width * scale) + "px";
@@ -916,7 +957,7 @@ var loop; // holds timeout for main loop
 
 SqueakJS.runImage = function(buffer, name, display, options) {
     window.onbeforeunload = function(evt) {
-        var msg = SqueakJS.appName + " is still running";  
+        var msg = SqueakJS.appName + " is still running";
         evt.returnValue = msg;
         return msg;
     };
@@ -926,9 +967,9 @@ SqueakJS.runImage = function(buffer, name, display, options) {
     display.showBanner("Loading " + SqueakJS.appName);
     display.showProgress(0);
     var self = this;
-    window.setTimeout(function() {
+    window.setTimeout(function readImageAsync() {
         var image = new Squeak.Image(name);
-        image.readFromBuffer(buffer, function() {
+        image.readFromBuffer(buffer, function startRunning() {
             display.quitFlag = false;
             var vm = new Squeak.Interpreter(image, display);
             SqueakJS.vm = vm;
@@ -940,7 +981,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
             function run() {
                 try {
                     if (display.quitFlag) self.onQuit(vm, display, options);
-                    else vm.interpret(50, function(ms) {
+                    else vm.interpret(50, function runAgain(ms) {
                         if (ms == "sleep") ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
                         loop = window.setTimeout(run, ms);
@@ -957,6 +998,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
             display.runFor = function(milliseconds) {
                 var stoptime = Date.now() + milliseconds;
                 do {
+                    if (display.quitFlag) return;
                     display.runNow();
                 } while (Date.now() < stoptime);
             };
@@ -967,7 +1009,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
 };
 
 function processOptions(options) {
-    var search = window.location.hash.slice(1),
+    var search = (location.hash || location.search).slice(1),
         args = search && search.split("&");
     if (args) for (var i = 0; i < args.length; i++) {
         var keyAndVal = args[i].split("="),
@@ -987,8 +1029,7 @@ function processOptions(options) {
     Squeak.dirCreate(root, true);
     if (!/\/$/.test(root)) root += "/";
     options.root = root;
-    if (options.url && options.files && !options.image)
-        options.image = options.url + "/" + options.files[0];
+    SqueakJS.options = options;
 }
 
 function fetchTemplates(options) {
@@ -998,84 +1039,189 @@ function fetchTemplates(options) {
             options.templates.forEach(function(path){ templates[path] = path; });
             options.templates = templates;
         }
-        for (var path in options.templates)
-            Squeak.fetchTemplateDir(path[0] == "/" ? path : options.root + path, options.templates[path]);
+        for (var path in options.templates) {
+            var dir = path[0] == "/" ? path : options.root + path,
+                url = Squeak.splitUrl(options.templates[path], options.url).full;
+            Squeak.fetchTemplateDir(dir, url);
+        }
     }
 }
 
-SqueakJS.runSqueak = function(imageUrl, canvas, options) {
-    processOptions(options);
-    if (options.image) imageUrl = options.image;
-    else options.image = imageUrl;
-    if (imageUrl.match(/^http:/) && location.protocol.match(/^https/)) {
-        location.protocol = 'http';
-        return;
+function processFile(file, display, options, thenDo) {
+    Squeak.filePut(options.root + file.name, file.data, function() {
+        console.log("Stored " + options.root + file.name);
+        if (file.zip) {
+            processZip(file, display, options, thenDo);
+        } else {
+            thenDo();
+        }
+    });
+}
+
+function processZip(file, display, options, thenDo) {
+    JSZip().loadAsync(file.data).then(function(zip) {
+        var todo = [];
+        zip.forEach(function(filename){
+            if (!options.image.name && filename.match(/\.image$/))
+                options.image.name = filename;
+            if (options.forceDownload || !Squeak.fileExists(options.root + filename)) {
+                todo.push(filename);
+            } else if (options.image.name === filename) {
+                // image exists, need to fetch it from storage
+                var _thenDo = thenDo;
+                thenDo = function() {
+                    Squeak.fileGet(options.root + filename, function(data) {
+                        options.image.data = data;
+                        return _thenDo();
+                    }, function onError() {
+                        Squeak.fileDelete(options.root + file.name);
+                        return processZip(file, display, options, _thenDo);
+                    });
+                }
+            }
+        });
+        if (todo.length === 0) return thenDo();
+        var done = 0;
+        display.showBanner("Unzipping " + file.name);
+        display.showProgress(0);
+        todo.forEach(function(filename){
+            console.log("Inflating " + file.name + ": " + filename);
+            function progress(x) { display.showProgress((x.percent / 100 + done) / todo.length); }
+            zip.file(filename).async("arraybuffer", progress).then(function(buffer){
+                console.log("Expanded size of " + filename + ": " + buffer.byteLength);
+                var unzipped = {};
+                if (options.image.name === filename)
+                    unzipped = options.image;
+                unzipped.name = filename;
+                unzipped.data = buffer;
+                processFile(unzipped, display, options, function() {
+                    if (++done === todo.length) thenDo();
+                });
+            });
+        });
+    });
+}
+
+function checkExisting(file, display, options, ifExists, ifNotExists) {
+    if (!Squeak.fileExists(options.root + file.name))
+        return ifNotExists();
+    if (file.image || file.zip) {
+        // if it's the image or a zip, load from file storage
+        Squeak.fileGet(options.root + file.name, function(data) {
+            file.data = data;
+            if (file.zip) processZip(file, display, options, ifExists);
+            else ifExists();
+        }, function onError() {
+            // if error, download it
+            Squeak.fileDelete(options.root + file.name);
+            return ifNotExists();
+        });
+    } else {
+       // for all other files assume they're okay
+       ifExists();
     }
-    SqueakJS.options = options;
-    SqueakJS.appName = options.appName || imageUrl.replace(/.*\//, "").replace(/\.image$/, "");
-    Squeak.fsck();
-    fetchTemplates(options);
-    var display = createSqueakDisplay(canvas, options),
-        imageName = Squeak.splitFilePath(imageUrl).basename,
-        imageData = null,
-        baseUrl = imageUrl.replace(/[^\/]*$/, ""),
-        files = [{url: imageUrl, name: imageName}];
-    if (options.files) {
-        options.files.forEach(function(f) { if (f !== imageName) files.push({url: baseUrl + f, name: f}); });
-    }
-    if (options.document) {
-        var docName = Squeak.splitFilePath(options.document).basename;
-        files.push({url: options.document, name: docName, forceDownload: options.forceDownload !== false});
-        display.documentName = options.root + docName;
-    }
-    function getNextFile(whenAllDone) {
-        if (files.length === 0) return whenAllDone(imageData);
+}
+
+function downloadFile(file, display, options, thenDo) {
+    display.showBanner("Downloading " + file.name);
+    var rq = new XMLHttpRequest(),
+        proxy = options.proxy || "";
+    rq.open('GET', proxy + file.url);
+    if (options.ajax) rq.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    rq.responseType = 'arraybuffer';
+    rq.onprogress = function(e) {
+        if (e.lengthComputable) display.showProgress(e.loaded / e.total);
+    };
+    rq.onload = function(e) {
+        if (this.status == 200) {
+            file.data = this.response;
+            processFile(file, display, options, thenDo);
+        }
+        else this.onerror(this.statusText);
+    };
+    rq.onerror = function(e) {
+        if (options.proxy) return alert("Failed to download:\n" + file.url);
+        console.warn('Retrying with CORS proxy: ' + file.url);
+        var proxy = 'https://crossorigin.me/',
+            retry = new XMLHttpRequest();
+        retry.open('GET', proxy + file.url);
+        if (options.ajax) retry.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+        retry.responseType = rq.responseType;
+        retry.onprogress = rq.onprogress;
+        retry.onload = rq.onload;
+        retry.onerror = function() {alert("Failed to download:\n" + file.url)};
+        retry.send();
+    };
+    rq.send();
+}
+
+function fetchFiles(files, display, options, thenDo) {
+    // check if files exist locally and download if nessecary
+    function getNextFile() {
+        if (files.length === 0) return thenDo();
         var file = files.shift(),
             forceDownload = options.forceDownload || file.forceDownload;
-        if (!forceDownload && Squeak.fileExists(options.root + file.name)) {
-            if (file.name == imageName) {
-                Squeak.fileGet(options.root + file.name, function(data) {
-                    imageData = data;
-                    getNextFile(whenAllDone);
-                }, function onError() {
-                    Squeak.fileDelete(options.root + file.name);
-                    files.unshift(file);
-                    getNextFile(whenAllDone);
-                });
-            } else getNextFile(whenAllDone);
-            return;
-        }
-        display.showBanner("Downloading " + file.name);
-        var rq = new XMLHttpRequest();
-        rq.open('GET', file.url);
-        rq.responseType = 'arraybuffer';
-        rq.onprogress = function(e) {
-            if (e.lengthComputable) display.showProgress(e.loaded / e.total);
-        };
-        rq.onload = function(e) {
-            if (this.status == 200) {
-                if (file.name == imageName) {imageData = this.response;}
-                Squeak.filePut(options.root + file.name, this.response, function() {
-                    getNextFile(whenAllDone);
-                });
-            }
-            else this.onerror(this.statusText);
-        };
-        rq.onerror = function(e) {
-            console.warn('Retrying with CORS proxy: ' + file.url);
-            var proxy = options.proxy || 'https://crossorigin.me/',
-                retry = new XMLHttpRequest();
-            retry.open('GET', proxy + file.url);
-            retry.responseType = rq.responseType;
-            retry.onprogress = rq.onprogress;
-            retry.onload = rq.onload;
-            retry.onerror = function() {alert("Failed to download:\n" + file.url)};
-            retry.send();
-        };
-        rq.send();
+        if (forceDownload) downloadFile(file, display, options, getNextFile);
+        else checkExisting(file, display, options,
+            function ifExists() {
+                getNextFile();
+            },
+            function ifNotExists() {
+                downloadFile(file, display, options, getNextFile);
+            });
     }
-    getNextFile(function whenAllDone(imageData) {
-        SqueakJS.runImage(imageData, options.root + imageName, display, options);
+    getNextFile();
+}
+
+SqueakJS.runSqueak = function(imageUrl, canvas, options) {
+    // we need to fetch all files first, then run the image
+    processOptions(options);
+    if (!imageUrl && options.image) imageUrl = options.image;
+    var baseUrl = options.url || (imageUrl && imageUrl.replace(/[^\/]*$/, "")) || "";
+    options.url = baseUrl;
+    fetchTemplates(options);
+    var display = createSqueakDisplay(canvas, options),
+        image = {url: null, name: null, image: true, data: null},
+        files = [];
+    display.argv = options.argv;
+    if (imageUrl) {
+        var url = Squeak.splitUrl(imageUrl, baseUrl);
+        image.url = url.full;
+        image.name = url.filename;
+    }
+    if (options.files) {
+        options.files.forEach(function(f) {
+            var url = Squeak.splitUrl(f, baseUrl);
+            if (image.name === url.filename) {/* pushed after other files */}
+            else if (!image.url && f.match(/\.image$/)) {
+                image.name = url.filename;
+                image.url = url.full;
+            } else {
+                files.push({url: url.full, name: url.filename});
+            }
+        });
+    }
+    if (options.zip) {
+        var zips = typeof options.zip === "string" ? [options.zip] : options.zip;
+        zips.forEach(function(zip) {
+            var url = Squeak.splitUrl(zip, baseUrl);
+            files.push({url: url.full, name: url.filename, zip: true});
+        });
+    }
+    if (image.url) files.push(image);
+    if (options.document) {
+        var url = Squeak.splitUrl(options.document, baseUrl);
+        files.push({url: url.full, name: url.filename, forceDownload: options.forceDownload !== false});
+        display.documentName = options.root + url.filename;
+    }
+    options.image = image;
+    fetchFiles(files, display, options, function thenDo() {
+        Squeak.fsck();
+        var image = options.image;
+        if (!image.name) return alert("could not find an image");
+        if (!image.data) return alert("could not find image " + image.name);
+        SqueakJS.appName = options.appName || image.name.replace(/\.image$/, "");
+        SqueakJS.runImage(image.data, options.root + image.name, display, options);
     });
     return display;
 };
