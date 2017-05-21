@@ -11,6 +11,6 @@ console.log('About to run SqueakJS ...');
 
 SqueakJS.runSqueak({
   imageName: imageName,
-  path: (!!process.argv[3] ? process.argv[3] : void 0)
+  url: __dirname
 });
 

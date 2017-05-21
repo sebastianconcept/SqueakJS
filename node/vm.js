@@ -2,6 +2,19 @@ var module = require('./extensions').module;
 Object.extend = require('./extensions').extend;
 Function.prototype.subclass = require('./extensions').subclass;
 
+// if in private mode set localStorage to a regular dict
+var LocalStorage = require('node-localstorage').LocalStorage;
+global.localStorage = new LocalStorage('./localStorage');
+
+try {
+  localStorage['squeak-foo:'] = 'bar';
+  if (localStorage['squeak-foo:'] !== 'bar') throw Error();
+  delete localStorage['squeak-foo:'];
+} catch (e) {
+  console.warn("localStorage not available, faking");
+  global.localStorage = {};
+}
+
 module('users.bert.SqueakJS.vm').requires().toRun(function() {
 "use strict";
 /*
@@ -29,18 +42,6 @@ module('users.bert.SqueakJS.vm').requires().toRun(function() {
 // shorter name for convenience
 global.Squeak = users.bert.SqueakJS.vm;
 
-// if in private mode set localStorage to a regular dict
-var LocalStorage = require('node-localstorage').LocalStorage;
-var localStorage = new LocalStorage('./localStorage');
-
-try {
-  localStorage['squeak-foo:'] = 'bar';
-  if (localStorage['squeak-foo:'] !== 'bar') throw Error();
-  delete localStorage['squeak-foo:'];
-} catch(e) {
-  console.warn("localStorage not available, faking");
-  localStorage = {};
-}
 
 Object.extend(Squeak,
 "version", {

@@ -24,8 +24,7 @@
 
 var module = require('./extensions').module;
 var fs = require('fs');
-// var Squeak = require('./vm').Squeak;
-// var SqueakJS = require('./vm').SqueakJS;
+var path = require('path');
 
 if (typeof localStorage === 'undefined' || localStorage === null) {
   var LocalStorage = require('node-localstorage').LocalStorage;
@@ -924,20 +923,20 @@ function updateSpinner(spinner, idleMS, vm, display) {
 
 var loop; // holds timeout for main loop
 
-SqueakJS.runImage = function(buffer, name, display, options) {
+SqueakJS.runImage = function (buffer, name, options) {
   debugger
     window.onbeforeunload = function(evt) {
         var msg = SqueakJS.appName + " is still running";
         evt.returnValue = msg;
         return msg;
     };
-    window.clearTimeout(loop);
-    display.reset();
-    display.clear();
-    display.showBanner("Loading " + SqueakJS.appName);
-    display.showProgress(0);
+    clearTimeout(loop);
+    // display.reset();
+    // display.clear();
+    console.log('Loading ' + SqueakJS.appName);
+
     var self = this;
-    window.setTimeout(function readImageAsync() {
+    setTimeout(function readImageAsync() {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function startRunning() {
             display.quitFlag = false;
@@ -954,7 +953,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
                     else vm.interpret(50, function runAgain(ms) {
                         if (ms == "sleep") ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
-                        loop = window.setTimeout(run, ms);
+                        loop = setTimeout(run, ms);
                     });
                 } catch(error) {
                     console.error(error);
@@ -962,10 +961,10 @@ SqueakJS.runImage = function(buffer, name, display, options) {
                 }
             }
             display.runNow = function() {
-                window.clearTimeout(loop);
+                clearTimeout(loop);
                 run();
             };
-            display.runFor = function(milliseconds) {
+            display.runFor = function (milliseconds) {
                 var stoptime = Date.now() + milliseconds;
                 do {
                     if (display.quitFlag) return;
@@ -974,27 +973,30 @@ SqueakJS.runImage = function(buffer, name, display, options) {
             };
             run();
         },
-        function readProgress(value) {display.showProgress(value);});
+        function readProgress (value) {
+          console.log(value);
+        });
     }, 0);
 };
 
-function processOptions(options) {
+function processOptions (options) {
     // var search = (location.hash || location.search).slice(1),
     //     args = search && search.split("&");
-    // if (args) for (var i = 0; i < args.length; i++) {
-    //     var keyAndVal = args[i].split("="),
-    //         key = keyAndVal[0],
-    //         val = true;
-    //     if (keyAndVal.length > 1) {
-    //         val = decodeURIComponent(keyAndVal.slice(1).join("="));
-    //         if (val.match(/^(true|false|null|[0-9"[{].*)$/))
-    //             try { val = JSON.parse(val); } catch(e) {
-    //                 if (val[0] === "[") val = val.slice(1,-1).split(","); // handle string arrays
-    //                 // if not JSON use string itself
-    //             }
-    //     }
-    //     options[key] = val;
-    // }
+    var args = '';
+    if (args) for (var i = 0; i < args.length; i++) {
+        var keyAndVal = args[i].split("="),
+            key = keyAndVal[0],
+            val = true;
+        if (keyAndVal.length > 1) {
+            val = decodeURIComponent(keyAndVal.slice(1).join("="));
+            if (val.match(/^(true|false|null|[0-9"[{].*)$/))
+                try { val = JSON.parse(val); } catch(e) {
+                    if (val[0] === "[") val = val.slice(1,-1).split(","); // handle string arrays
+                    // if not JSON use string itself
+                }
+        }
+        options[key] = val;
+    }
     var root = Squeak.splitFilePath(options.root || "/").fullname;
     Squeak.dirCreate(root, true);
     if (!/\/$/.test(root)) root += "/";
@@ -1002,12 +1004,11 @@ function processOptions(options) {
     SqueakJS.options = options;
 }
 
-function fetchTemplates(options) {
-  debugger
+function fetchTemplates (options) {
     if (options.templates) {
         if (options.templates.constructor === Array) {
             var templates = {};
-            options.templates.forEach(function(path){ templates[path] = path; });
+            options.templates.forEach(function (path){ templates[path] = path; });
             options.templates = templates;
         }
         for (var path in options.templates) {
@@ -1095,47 +1096,26 @@ function checkExisting(file, options, ifExists, ifNotExists) {
     }
 }
 
-function downloadFile(file, options, thenDo) {
-    debugger
-    console.log('Loading ' + file.name);
-    var rq = new XMLHttpRequest(),
-        proxy = options.proxy || "";
-    rq.open('GET', proxy + file.url);
-    if (options.ajax) rq.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-    rq.responseType = 'arraybuffer';
-    // rq.onprogress = function(e) {
-    //     if (e.lengthComputable) display.showProgress(e.loaded / e.total);
-    // };
-    rq.onload = function(e) {
-        if (this.status == 200) {
-            file.data = this.response;
-            processFile(file, options, thenDo);
-        }
-        else this.onerror(this.statusText);
-    };
-    rq.onerror = function(e) {
-      throw new Error('Failed to load ', file);
+function downloadFile (file, options, thenDo) {
+    // This downloadFile method is actually doing an async read on a local file.
+    var absoluteFilename = file.url;
+    if( !fs.existsSync(absoluteFilename) ) {
+      throw new Error(`File not found ${absoluteFilename}`);
+    }
 
-      // deprecated below
-        if (options.proxy) return alert("Failed to download:\n" + file.url);
-        console.warn('Retrying with CORS proxy: ' + file.url);
-        var proxy = 'https://crossorigin.me/',
-            retry = new XMLHttpRequest();
-        retry.open('GET', proxy + file.url);
-        if (options.ajax) retry.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-        retry.responseType = rq.responseType;
-        retry.onprogress = rq.onprogress;
-        retry.onload = rq.onload;
-        retry.onerror = function() {alert("Failed to download:\n" + file.url)};
-        retry.send();
-    };
-    rq.send();
+    console.log('Loading ' + absoluteFilename);
+    debugger
+
+    fs.readFile(absoluteFilename, (err, data) => {
+      if (err) throw new Error('Failed to load ', file);
+      file.data = data;
+      processFile(file, options, thenDo);
+    });
 }
 
-function fetchFiles(files, options, thenDo) {
-    debugger
+function fetchFiles (files, options, thenDo) {
     // check if files exist locally and download if nessecary
-    function getNextFile() {
+    function getNextFile () {
         if (files.length === 0) return thenDo();
         var file = files.shift(),
             forceDownload = options.forceDownload || file.forceDownload;
@@ -1155,12 +1135,13 @@ function fetchFiles(files, options, thenDo) {
 SqueakJS.runSqueak = function (options) {
     // we need to fetch all files first, then run the image
     processOptions(options);
-    if (options.image) var imageUrl = options.image;
+    if (options.imageName) var imageUrl = options.imageName;
     var baseUrl = options.url || (imageUrl && imageUrl.replace(/[^\/]*$/, '')) || '';
     options.url = baseUrl;
     fetchTemplates(options);
     var image = {url: null, name: null, image: true, data: null},
         files = [];
+
     if (imageUrl) {
         var url = Squeak.splitUrl(imageUrl, baseUrl);
         image.url = url.full;
@@ -1189,19 +1170,19 @@ SqueakJS.runSqueak = function (options) {
     if (options.document) {
         var url = Squeak.splitUrl(options.document, baseUrl);
         files.push({url: url.full, name: url.filename, forceDownload: options.forceDownload !== false});
-        // display.documentName = options.root + url.filename;
         console.info('filename: ',options.root + url.filename);
     }
     options.image = image;
-    fetchFiles(files, options, function thenDo() {
+
+    fetchFiles(files, options, function thenDo () {
         Squeak.fsck();
         var image = options.image;
-        if (!image.name) return alert("could not find an image");
-        if (!image.data) return alert("could not find image " + image.name);
-        SqueakJS.appName = options.appName || image.name.replace(/\.image$/, "");
-        SqueakJS.runImage(image.data, options.root + image.name, display, options);
+        if (!image.name) throw new Error('could not find an image '+JSON.stringify(image));
+        if (!image.data) throw new Error('could not find image ' + image.name);
+        SqueakJS.appName = options.appName || image.name.replace(/\.image$/, '');
+        SqueakJS.runImage(image.data, options.root + image.name, options);
     });
-    return display;
+    return null;
 };
 
 SqueakJS.quitSqueak = function() {

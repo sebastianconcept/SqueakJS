@@ -1033,7 +1033,7 @@ function processOptions(options) {
     SqueakJS.options = options;
 }
 
-function fetchTemplates(options) {
+function fetchTemplates (options) {
     if (options.templates) {
         if (options.templates.constructor === Array) {
             var templates = {};
@@ -1185,6 +1185,7 @@ SqueakJS.runSqueak = function(imageUrl, canvas, options) {
         image = {url: null, name: null, image: true, data: null},
         files = [];
     display.argv = options.argv;
+    debugger
     if (imageUrl) {
         var url = Squeak.splitUrl(imageUrl, baseUrl);
         image.url = url.full;
@@ -1216,6 +1217,7 @@ SqueakJS.runSqueak = function(imageUrl, canvas, options) {
         display.documentName = options.root + url.filename;
     }
     options.image = image;
+        debugger
     fetchFiles(files, display, options, function thenDo() {
         Squeak.fsck();
         var image = options.image;
