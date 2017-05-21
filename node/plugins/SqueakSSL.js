@@ -2,8 +2,7 @@
  * This is a fake SSL plugin, actual authentication and crypto
  * is handled by browser and SocketPlugin
  */
-
-var Squeak = require('../vm').Squeak;
+var module = require('../extensions').module;
 
 function SqueakSSL() {
   "use strict";
@@ -119,8 +118,10 @@ function SqueakSSL() {
   };
 }
 
-Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
+function registerSqueakSSL() {
+    if (typeof Squeak === "object" && Squeak.registerExternalModule) {
+        Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
+    } else window.setTimeout(registerSqueakSSL, 100);
+};
 
-// window.addEventListener('load', function() {
-//   Squeak.registerExternalModule('SqueakSSL', SqueakSSL());
-// });
+registerSqueakSSL();

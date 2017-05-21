@@ -3,8 +3,7 @@
  * and sending as XMLHttpRequest. To make connections to servers without CORS,
  * it uses the crossorigin.me proxy.
  */
-
-var Squeak = require('../vm').Squeak;
+var module = require('../extensions').module;
 
 function SocketPlugin() {
   "use strict";
@@ -81,7 +80,8 @@ function SocketPlugin() {
         _getURL: function(targetURL, isRetry) {
           var url = '';
           if (isRetry || this._requestNeedsProxy()) {
-            url += SqueakJS.options.proxy || 'https://crossorigin.me/';
+            var proxy = typeof SqueakJS === "object" && SqueakJS.options.proxy;
+            url += proxy || 'https://crossorigin.me/';
           }
           if (this.port !== 443) {
             url += 'http://' + this._hostAndPort() + targetURL;
@@ -116,8 +116,7 @@ function SocketPlugin() {
             }
           }
 
-          // if (window.fetch) {   what's the intention here? using false for now...
-          if (false) {
+          if (window.fetch) {
             this._performFetchAPIRequest(targetURL, httpMethod, data, headerLines);
           } else {
             this._performXMLHTTPRequest(targetURL, httpMethod, data, headerLines);
@@ -132,6 +131,9 @@ function SocketPlugin() {
             if (lineItems.length === 2) {
               headers[lineItems[0]] = lineItems[1].trim();
             }
+          }
+          if (typeof SqueakJS === "object" && SqueakJS.options.ajax) {
+              headers["X-Requested-With"] = "XMLHttpRequest";
           }
           var init = {
             method: httpMethod,
@@ -203,6 +205,10 @@ function SocketPlugin() {
           if (contentType !== undefined) {
             httpRequest.setRequestHeader('Content-type', contentType);
           }
+          if (typeof SqueakJS === "object" && SqueakJS.options.ajax) {
+              httpRequest.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+          }
+
           httpRequest.responseType = "arraybuffer";
 
           httpRequest.onload = function (oEvent) {
@@ -215,6 +221,9 @@ function SocketPlugin() {
             var retry = new XMLHttpRequest();
             retry.open(httpMethod, url);
             retry.responseType = httpRequest.responseType;
+            if (typeof SqueakJS === "object" && SqueakJS.options.ajaxx) {
+                retry.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+            }
             retry.onload = function(oEvent) {
               console.log('Success: ' + url);
               thisHandle._handleXMLHTTPResponse(this);
@@ -311,7 +320,7 @@ function SocketPlugin() {
 
         send: function(data, start, end) {
           if (this.sendTimeout !== null) {
-            clearTimeout(this.sendTimeout);
+            window.clearTimeout(this.sendTimeout);
           }
           this.lastSend = Date.now();
           var newBytes = data.bytes.subarray(start, end);
@@ -369,6 +378,7 @@ function SocketPlugin() {
     primitiveSocketConnectionStatus: function(argCount) {
       if (argCount !== 1) return false;
       var handle = this.interpreterProxy.stackObjectValue(0).handle;
+      if (handle === undefined) return false;
       var status = handle.status;
       if (status === undefined) status = this.Socket_InvalidSocket;
       this.interpreterProxy.popthenPush(1, status);
@@ -471,8 +481,10 @@ function SocketPlugin() {
   };
 }
 
-Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
+function registerSocketPlugin() {
+    if (typeof Squeak === "object" && Squeak.registerExternalModule) {
+        Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
+    } else window.setTimeout(registerSocketPlugin, 100);
+};
 
-// window.addEventListener('load', function() {
-//   Squeak.registerExternalModule('SocketPlugin', SocketPlugin());
-// });
+registerSocketPlugin();

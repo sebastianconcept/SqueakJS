@@ -4,10 +4,9 @@
    from
 	BalloonEnginePlugin VMMaker-bf.353 uuid: 8ae25e7e-8d2c-451e-8277-598b30e9c002
  */
-var sqModule = require('../sqModule');
-var Squeak = require('../vm').Squeak;
+var module = require('../extensions').module;
 
-sqModule("users.bert.SqueakJS.plugins.B2DPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
+module("users.bert.SqueakJS.plugins.B2DPlugin").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;

@@ -4,11 +4,9 @@
    from
 	LargeIntegersPlugin VMMaker-bf.353 uuid: 8ae25e7e-8d2c-451e-8277-598b30e9c002
  */
+var module = require('../extensions').module;
 
-var sqModule = require('../sqModule');
-var Squeak = require('../vm').Squeak;
-
-sqModule("users.bert.SqueakJS.plugins.LargeIntegers").requires("users.bert.SqueakJS.vm").toRun(function() {
+module("users.bert.SqueakJS.plugins.LargeIntegers").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;
@@ -2084,7 +2082,7 @@ function primGetModuleName() {
 	var strOop;
 
 	// missing DebugCode;
-	strLen = strlen(getModuleName());
+	strLen = getModuleName().length;
 	strOop = interpreterProxy.instantiateClassindexableSize(interpreterProxy.classString(), strLen);
 	strPtr = strOop.bytes;
 	for (i = 0; i <= (strLen - 1); i++) {

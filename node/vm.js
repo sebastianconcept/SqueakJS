@@ -27,7 +27,7 @@ module('users.bert.SqueakJS.vm').requires().toRun(function() {
  */
 
 // shorter name for convenience
-var Squeak = users.bert.SqueakJS.vm;
+global.Squeak = users.bert.SqueakJS.vm;
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;

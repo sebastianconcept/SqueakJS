@@ -4,11 +4,9 @@
    from
 	KedamaPlugin2 Kedama-Plugins-yo.1 uuid: 3fc7d691-0149-ba4d-a339-5d27cd44a2f8
  */
+var module = require('../extensions').module;
 
-var sqModule = require('../sqModule');
-var Squeak = require('../vm').Squeak;
-
-sqModule("users.bert.SqueakJS.plugins.KedamaPlugin2").requires("users.bert.SqueakJS.vm").toRun(function() {
+module("users.bert.SqueakJS.plugins.KedamaPlugin2").requires("users.bert.SqueakJS.vm").toRun(function() {
 "use strict";
 
 var VM_PROXY_MAJOR = 1;

@@ -24,12 +24,16 @@
 
 var module = require('./extensions').module;
 var fs = require('fs');
-var Squeak = require('./vm').Squeak;
-var SqueakJS = require('./vm').SqueakJS;
+// var Squeak = require('./vm').Squeak;
+// var SqueakJS = require('./vm').SqueakJS;
+
+if (typeof localStorage === 'undefined' || localStorage === null) {
+  var LocalStorage = require('node-localstorage').LocalStorage;
+  global.localStorage = new LocalStorage('./localStorage');
+}
+
 Object.extend = require('./extensions').extend;
 Function.prototype.subclass = require('./extensions').subclass;
-debugger
-
 
 //////////////////////////////////////////////////////////////////////////////
 // load vm, plugins, and other libraries
@@ -59,7 +63,7 @@ debugger
         "./plugins/MiscPrimitivePlugin.js",
         "./plugins/ScratchPlugin.js",
         "./plugins/SocketPlugin.js",
-        "./plugins/SpeechPlugin.js",
+        // "./plugins/SpeechPlugin.js",
         "./plugins/SqueakSSL.js",
         "./plugins/SoundGenerationPlugin.js",
         "./plugins/StarSqueakPlugin.js",
@@ -81,7 +85,6 @@ debugger
 module('SqueakJS').requires('users.bert.SqueakJS.vm').toRun(function() {
 
 // if in private mode set localStorage to a regular dict
-var localStorage = window.localStorage;
 try {
   localStorage["squeak-foo:"] = "bar";
   if (localStorage["squeak-foo:"] !== "bar") throw Error();
@@ -189,7 +192,8 @@ function recordModifiers(evt, display) {
     return modifiers;
 }
 
-var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
+// var canUseMouseOffset = navigator.userAgent.match("AppleWebKit/");
+var canUseMouseOffset = false
 
 function updateMousePos(evt, canvas, display) {
     debugger
@@ -885,6 +889,7 @@ function createSqueakDisplay(canvas, options) {
 }
 
 function setupSpinner(vm, options) {
+    debugger
     var spinner = options.spinner;
     if (!spinner) return null;
     spinner.onmousedown = function(evt) {
@@ -920,6 +925,7 @@ function updateSpinner(spinner, idleMS, vm, display) {
 var loop; // holds timeout for main loop
 
 SqueakJS.runImage = function(buffer, name, display, options) {
+  debugger
     window.onbeforeunload = function(evt) {
         var msg = SqueakJS.appName + " is still running";
         evt.returnValue = msg;
@@ -973,6 +979,7 @@ SqueakJS.runImage = function(buffer, name, display, options) {
 };
 
 function processOptions(options) {
+  debugger
     var search = (location.hash || location.search).slice(1),
         args = search && search.split("&");
     if (args) for (var i = 0; i < args.length; i++) {
@@ -997,6 +1004,7 @@ function processOptions(options) {
 }
 
 function fetchTemplates(options) {
+  debugger
     if (options.templates) {
         if (options.templates.constructor === Array) {
             var templates = {};
@@ -1087,6 +1095,7 @@ function checkExisting(file, display, options, ifExists, ifNotExists) {
 }
 
 function downloadFile(file, display, options, thenDo) {
+    debugger
     display.showBanner("Downloading " + file.name);
     var rq = new XMLHttpRequest(),
         proxy = options.proxy || "";
@@ -1120,6 +1129,7 @@ function downloadFile(file, display, options, thenDo) {
 }
 
 function fetchFiles(files, display, options, thenDo) {
+    debugger
     // check if files exist locally and download if nessecary
     function getNextFile() {
         if (files.length === 0) return thenDo();
