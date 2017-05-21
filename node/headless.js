@@ -930,40 +930,41 @@ SqueakJS.runImage = function (buffer, name, options) {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function startRunning() {
             SqueakJS.quitFlag = false;
-            var vm = new Squeak.Interpreter(image);
+            var fakeDisplay = {};
+            var vm = new Squeak.Interpreter(image, fakeDisplay);
             SqueakJS.vm = vm;
-            localStorage["squeakImageName"] = name;
+            localStorage['squeakImageName'] = name;
             setupSwapButtons(options);
             console.log("Starting " + SqueakJS.appName);
-            var spinner = setupSpinner(vm, options);
+            // var spinner = setupSpinner(vm, options);
             function run() {
                 try {
                     if (SqueakJS.quitFlag) self.onQuit(vm, options);
-                    else vm.interpret(50, function runAgain(ms) {
-                        if (ms == "sleep") ms = 200;
-                        if (spinner) updateSpinner(spinner, ms, vm, display);
+                    else vm.interpret(50, function runAgain (ms) {
+                        if (ms == 'sleep') ms = 200;
+                        // if (spinner) updateSpinner(spinner, ms, vm, display);
                         loop = setTimeout(run, ms);
                     });
                 } catch(error) {
                     console.error(error);
-                    alert(error);
+                    // alert(error);
                 }
             }
-            display.runNow = function() {
+            SqueakJS.runNow = function() {
                 clearTimeout(loop);
                 run();
             };
-            display.runFor = function (milliseconds) {
+            SqueakJS.runFor = function (milliseconds) {
                 var stoptime = Date.now() + milliseconds;
                 do {
-                    if (display.quitFlag) return;
-                    display.runNow();
+                    if (SqueakJS.quitFlag) return;
+                    SqueakJS.runNow();
                 } while (Date.now() < stoptime);
             };
             run();
         },
         function readProgress (value) {
-          console.log(value);
+          console.log('Reading progress: ', value);
         });
     }, 0);
 };

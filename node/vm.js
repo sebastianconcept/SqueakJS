@@ -6164,7 +6164,7 @@ Object.subclass('Squeak.Primitives',
 },
 'display', {
     primitiveBeCursor: function(argCount) {
-        if (this.display.cursorCanvas) {
+        if (this.display && this.display.cursorCanvas) {
             var cursorForm = this.loadForm(this.stackNonInteger(argCount), true),
                 maskForm = argCount === 1 ? this.loadForm(this.stackNonInteger(0)) : null;
             if (!this.success || !cursorForm) return false;
@@ -6260,6 +6260,8 @@ Object.subclass('Squeak.Primitives',
             this.displayUpdate(theDisplay, bounds);
     },
     showForm: function(ctx, form, rect, cursorColors) {
+      if (true) return
+      // This is NodeJS, no need to display
         if (!rect) return;
         var srcX = rect.left,
             srcY = rect.top,
@@ -6372,10 +6374,10 @@ Object.subclass('Squeak.Primitives',
         return true;
     },
     primitiveScreenSize: function(argCount) {
-        var display = this.display,
-            w = display.width || display.context.canvas.width,
-            h = display.height || display.context.canvas.height;
-        return this.popNandPushIfOK(argCount+1, this.makePointWithXandY(w, h));
+        // var display = this.display,
+        //     w = display.width || display.context.canvas.width,
+        //     h = display.height || display.context.canvas.height;
+        // return this.popNandPushIfOK(argCount+1, this.makePointWithXandY(w, h));
     },
     primitiveSetFullScreen: function(argCount) {
         var flag = this.stackBoolean(0);
@@ -6470,6 +6472,7 @@ Object.subclass('Squeak.Primitives',
         return this.popNandPushIfOK(argCount+1, this.ensureSmallInt(this.display.keys.shift()));
     },
     primitiveKeyboardPeek: function(argCount) {
+        if(true) return; // no need in a headless nodeJS Squeak
         var length = this.display.keys.length;
         return this.popNandPushIfOK(argCount+1, length ? this.ensureSmallInt(this.display.keys[0] || 0) : this.vm.nilObj);
     },
