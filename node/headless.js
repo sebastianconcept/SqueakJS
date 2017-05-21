@@ -979,23 +979,22 @@ SqueakJS.runImage = function(buffer, name, display, options) {
 };
 
 function processOptions(options) {
-  debugger
-    var search = (location.hash || location.search).slice(1),
-        args = search && search.split("&");
-    if (args) for (var i = 0; i < args.length; i++) {
-        var keyAndVal = args[i].split("="),
-            key = keyAndVal[0],
-            val = true;
-        if (keyAndVal.length > 1) {
-            val = decodeURIComponent(keyAndVal.slice(1).join("="));
-            if (val.match(/^(true|false|null|[0-9"[{].*)$/))
-                try { val = JSON.parse(val); } catch(e) {
-                    if (val[0] === "[") val = val.slice(1,-1).split(","); // handle string arrays
-                    // if not JSON use string itself
-                }
-        }
-        options[key] = val;
-    }
+    // var search = (location.hash || location.search).slice(1),
+    //     args = search && search.split("&");
+    // if (args) for (var i = 0; i < args.length; i++) {
+    //     var keyAndVal = args[i].split("="),
+    //         key = keyAndVal[0],
+    //         val = true;
+    //     if (keyAndVal.length > 1) {
+    //         val = decodeURIComponent(keyAndVal.slice(1).join("="));
+    //         if (val.match(/^(true|false|null|[0-9"[{].*)$/))
+    //             try { val = JSON.parse(val); } catch(e) {
+    //                 if (val[0] === "[") val = val.slice(1,-1).split(","); // handle string arrays
+    //                 // if not JSON use string itself
+    //             }
+    //     }
+    //     options[key] = val;
+    // }
     var root = Squeak.splitFilePath(options.root || "/").fullname;
     Squeak.dirCreate(root, true);
     if (!/\/$/.test(root)) root += "/";
@@ -1019,21 +1018,21 @@ function fetchTemplates(options) {
     }
 }
 
-function processFile(file, display, options, thenDo) {
-    Squeak.filePut(options.root + file.name, file.data, function() {
-        console.log("Stored " + options.root + file.name);
+function processFile (file, options, thenDo) {
+    Squeak.filePut(options.root + file.name, file.data, function () {
+        console.log('Stored ' + options.root + file.name);
         if (file.zip) {
-            processZip(file, display, options, thenDo);
+            processZip(file, options, thenDo);
         } else {
             thenDo();
         }
     });
 }
 
-function processZip(file, display, options, thenDo) {
-    JSZip().loadAsync(file.data).then(function(zip) {
+function processZip (file, options, thenDo) {
+    JSZip().loadAsync(file.data).then(function (zip) {
         var todo = [];
-        zip.forEach(function(filename){
+        zip.forEach(function (filename) {
             if (!options.image.name && filename.match(/\.image$/))
                 options.image.name = filename;
             if (options.forceDownload || !Squeak.fileExists(options.root + filename)) {
@@ -1041,24 +1040,26 @@ function processZip(file, display, options, thenDo) {
             } else if (options.image.name === filename) {
                 // image exists, need to fetch it from storage
                 var _thenDo = thenDo;
-                thenDo = function() {
-                    Squeak.fileGet(options.root + filename, function(data) {
+                thenDo = function () {
+                    Squeak.fileGet(options.root + filename, function (data) {
                         options.image.data = data;
                         return _thenDo();
                     }, function onError() {
                         Squeak.fileDelete(options.root + file.name);
-                        return processZip(file, display, options, _thenDo);
+                        return processZip(file, options, _thenDo);
                     });
                 }
             }
         });
         if (todo.length === 0) return thenDo();
         var done = 0;
-        display.showBanner("Unzipping " + file.name);
-        display.showProgress(0);
+        console.log('Unzipping ' + file.name);
+
         todo.forEach(function(filename){
-            console.log("Inflating " + file.name + ": " + filename);
-            function progress(x) { display.showProgress((x.percent / 100 + done) / todo.length); }
+            console.log('Inflating ' + file.name + ': ' + filename);
+            function progress(x) {
+              console.log((x.percent / 100 + done) / todo.length);
+            }
             zip.file(filename).async("arraybuffer", progress).then(function(buffer){
                 console.log("Expanded size of " + filename + ": " + buffer.byteLength);
                 var unzipped = {};
@@ -1066,7 +1067,7 @@ function processZip(file, display, options, thenDo) {
                     unzipped = options.image;
                 unzipped.name = filename;
                 unzipped.data = buffer;
-                processFile(unzipped, display, options, function() {
+                processFile(unzipped, options, function() {
                     if (++done === todo.length) thenDo();
                 });
             });
@@ -1074,14 +1075,14 @@ function processZip(file, display, options, thenDo) {
     });
 }
 
-function checkExisting(file, display, options, ifExists, ifNotExists) {
+function checkExisting(file, options, ifExists, ifNotExists) {
     if (!Squeak.fileExists(options.root + file.name))
         return ifNotExists();
     if (file.image || file.zip) {
         // if it's the image or a zip, load from file storage
-        Squeak.fileGet(options.root + file.name, function(data) {
+        Squeak.fileGet(options.root + file.name, function (data) {
             file.data = data;
-            if (file.zip) processZip(file, display, options, ifExists);
+            if (file.zip) processZip(file, options, ifExists);
             else ifExists();
         }, function onError() {
             // if error, download it
@@ -1094,25 +1095,28 @@ function checkExisting(file, display, options, ifExists, ifNotExists) {
     }
 }
 
-function downloadFile(file, display, options, thenDo) {
+function downloadFile(file, options, thenDo) {
     debugger
-    display.showBanner("Downloading " + file.name);
+    console.log('Loading ' + file.name);
     var rq = new XMLHttpRequest(),
         proxy = options.proxy || "";
     rq.open('GET', proxy + file.url);
     if (options.ajax) rq.setRequestHeader("X-Requested-With", "XMLHttpRequest");
     rq.responseType = 'arraybuffer';
-    rq.onprogress = function(e) {
-        if (e.lengthComputable) display.showProgress(e.loaded / e.total);
-    };
+    // rq.onprogress = function(e) {
+    //     if (e.lengthComputable) display.showProgress(e.loaded / e.total);
+    // };
     rq.onload = function(e) {
         if (this.status == 200) {
             file.data = this.response;
-            processFile(file, display, options, thenDo);
+            processFile(file, options, thenDo);
         }
         else this.onerror(this.statusText);
     };
     rq.onerror = function(e) {
+      throw new Error('Failed to load ', file);
+
+      // deprecated below
         if (options.proxy) return alert("Failed to download:\n" + file.url);
         console.warn('Retrying with CORS proxy: ' + file.url);
         var proxy = 'https://crossorigin.me/',
@@ -1128,36 +1132,35 @@ function downloadFile(file, display, options, thenDo) {
     rq.send();
 }
 
-function fetchFiles(files, display, options, thenDo) {
+function fetchFiles(files, options, thenDo) {
     debugger
     // check if files exist locally and download if nessecary
     function getNextFile() {
         if (files.length === 0) return thenDo();
         var file = files.shift(),
             forceDownload = options.forceDownload || file.forceDownload;
-        if (forceDownload) downloadFile(file, display, options, getNextFile);
-        else checkExisting(file, display, options,
+        if (forceDownload) downloadFile(file, options, getNextFile);
+        else checkExisting(file,options,
             function ifExists() {
                 getNextFile();
             },
             function ifNotExists() {
-                downloadFile(file, display, options, getNextFile);
+                downloadFile(file, options, getNextFile);
             });
     }
     getNextFile();
 }
 
-SqueakJS.runSqueak = function (imageUrl, canvas, options) {
+
+SqueakJS.runSqueak = function (options) {
     // we need to fetch all files first, then run the image
     processOptions(options);
-    if (!imageUrl && options.image) imageUrl = options.image;
-    var baseUrl = options.url || (imageUrl && imageUrl.replace(/[^\/]*$/, "")) || "";
+    if (options.image) var imageUrl = options.image;
+    var baseUrl = options.url || (imageUrl && imageUrl.replace(/[^\/]*$/, '')) || '';
     options.url = baseUrl;
     fetchTemplates(options);
-    var display = createSqueakDisplay(canvas, options),
-        image = {url: null, name: null, image: true, data: null},
+    var image = {url: null, name: null, image: true, data: null},
         files = [];
-    display.argv = options.argv;
     if (imageUrl) {
         var url = Squeak.splitUrl(imageUrl, baseUrl);
         image.url = url.full;
@@ -1177,7 +1180,7 @@ SqueakJS.runSqueak = function (imageUrl, canvas, options) {
     }
     if (options.zip) {
         var zips = typeof options.zip === "string" ? [options.zip] : options.zip;
-        zips.forEach(function(zip) {
+        zips.forEach(function (zip) {
             var url = Squeak.splitUrl(zip, baseUrl);
             files.push({url: url.full, name: url.filename, zip: true});
         });
@@ -1186,10 +1189,11 @@ SqueakJS.runSqueak = function (imageUrl, canvas, options) {
     if (options.document) {
         var url = Squeak.splitUrl(options.document, baseUrl);
         files.push({url: url.full, name: url.filename, forceDownload: options.forceDownload !== false});
-        display.documentName = options.root + url.filename;
+        // display.documentName = options.root + url.filename;
+        console.info('filename: ',options.root + url.filename);
     }
     options.image = image;
-    fetchFiles(files, display, options, function thenDo() {
+    fetchFiles(files, options, function thenDo() {
         Squeak.fsck();
         var image = options.image;
         if (!image.name) return alert("could not find an image");

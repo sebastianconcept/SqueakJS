@@ -5,9 +5,12 @@ if (!imageName) {
   throw new Error('Squeak needs you to specify an image name');
 }
 
+
+
 console.log('About to run SqueakJS ...');
 
 SqueakJS.runSqueak({
-  imageName: imageName
+  imageName: imageName,
+  path: (!!process.argv[3] ? process.argv[3] : void 0)
 });
 
