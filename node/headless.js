@@ -1147,7 +1147,7 @@ function fetchFiles(files, display, options, thenDo) {
     getNextFile();
 }
 
-SqueakJS.runSqueak = function(imageUrl, canvas, options) {
+SqueakJS.runSqueak = function (imageUrl, canvas, options) {
     // we need to fetch all files first, then run the image
     processOptions(options);
     if (!imageUrl && options.image) imageUrl = options.image;
@@ -1213,4 +1213,3 @@ SqueakJS.onQuit = function(vm, display, options) {
 };
 
 }); // end module
-
