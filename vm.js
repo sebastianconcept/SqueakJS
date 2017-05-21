@@ -2765,7 +2765,6 @@ Squeak.Object.subclass('Squeak.ObjectSpur',
 Object.subclass('Squeak.Interpreter',
 'initialization', {
     initialize: function(image, display) {
-      debugger
         console.log('squeak: initializing interpreter ' + Squeak.vmVersion);
         this.Squeak = Squeak;   // store locally to avoid dynamic lookup in Lively
         this.image = image;
@@ -5682,7 +5681,6 @@ Object.subclass('Squeak.Primitives',
     },
     primitiveClosureCopyWithCopiedValues: function(argCount) {
         this.vm.breakNow("primitiveClosureCopyWithCopiedValues");
-        debugger;
         return false;
     },
     primitiveClosureValue: function(argCount) {
@@ -6143,7 +6141,6 @@ Object.subclass('Squeak.Primitives',
     },
     primitiveExitToDebugger: function(argCount) {
         this.vm.breakNow("debugger primitive");
-        debugger;
         return true;
     },
     primitiveSetGCBiasToGrow: function(argCount) {

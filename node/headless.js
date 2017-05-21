@@ -132,7 +132,6 @@ function setupFullscreen(display, canvas, options) {
         if (options.header) options.header.style.display = fullscreen ? 'none' : '';
         if (options.footer) options.footer.style.display = fullscreen ? 'none' : '';
         if (options.fullscreenCheckbox) options.fullscreenCheckbox.checked = fullscreen;
-        setTimeout(window.onresize, 0);
     }
 
     var checkFullscreen;
@@ -563,7 +562,7 @@ function createSqueakDisplay(canvas, options) {
         var scale = adjustDisplay(l, t, w, h);
         if ((scale - display.initialScale) < 0.0001) {
             touch.orig = null;
-            window.onresize();
+            // window.onresize();
         }
     }
     // State machine to distinguish between 1st/2nd mouse button and zoom/pan:
@@ -924,32 +923,22 @@ function updateSpinner(spinner, idleMS, vm, display) {
 var loop; // holds timeout for main loop
 
 SqueakJS.runImage = function (buffer, name, options) {
-  debugger
-    window.onbeforeunload = function(evt) {
-        var msg = SqueakJS.appName + " is still running";
-        evt.returnValue = msg;
-        return msg;
-    };
     clearTimeout(loop);
-    // display.reset();
-    // display.clear();
     console.log('Loading ' + SqueakJS.appName);
-
     var self = this;
     setTimeout(function readImageAsync() {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function startRunning() {
-            display.quitFlag = false;
-            var vm = new Squeak.Interpreter(image, display);
+            SqueakJS.quitFlag = false;
+            var vm = new Squeak.Interpreter(image);
             SqueakJS.vm = vm;
             localStorage["squeakImageName"] = name;
             setupSwapButtons(options);
-            display.clear();
-            display.showBanner("Starting " + SqueakJS.appName);
+            console.log("Starting " + SqueakJS.appName);
             var spinner = setupSpinner(vm, options);
             function run() {
                 try {
-                    if (display.quitFlag) self.onQuit(vm, display, options);
+                    if (SqueakJS.quitFlag) self.onQuit(vm, options);
                     else vm.interpret(50, function runAgain(ms) {
                         if (ms == "sleep") ms = 200;
                         if (spinner) updateSpinner(spinner, ms, vm, display);
@@ -1104,11 +1093,12 @@ function downloadFile (file, options, thenDo) {
     }
 
     console.log('Loading ' + absoluteFilename);
-    debugger
 
     fs.readFile(absoluteFilename, (err, data) => {
       if (err) throw new Error('Failed to load ', file);
-      file.data = data;
+      var anArrayBuffer = new ArrayBuffer(data.size);
+      var anArrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      file.data = anArrayBuffer;
       processFile(file, options, thenDo);
     });
 }
@@ -1189,12 +1179,10 @@ SqueakJS.quitSqueak = function() {
     SqueakJS.vm.quitFlag = true;
 };
 
-SqueakJS.onQuit = function(vm, display, options) {
-    window.onbeforeunload = null;
-    display.vm = null;
+SqueakJS.onQuit = function(vm, options) {
     if (options.spinner) options.spinner.style.display = "none";
-    if (options.onQuit) options.onQuit(vm, display, options);
-    else display.showBanner(SqueakJS.appName + " stopped.");
+    if (options.onQuit) options.onQuit(vm, options);
+    else console.log(SqueakJS.appName + " stopped.");
 };
 
 }); // end module

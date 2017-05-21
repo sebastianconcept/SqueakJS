@@ -384,7 +384,7 @@ Object.extend(Squeak,
         };
 
         // if database connection already opened, just do transaction
-        if (window.SqueakDB) return startTransaction();
+        if (global.SqueakDB) return startTransaction();
 
         // otherwise, open SqueakDB first
         var openReq = indexedDB.open("squeak");
@@ -397,9 +397,9 @@ Object.extend(Squeak,
 
         openReq.onsuccess = function(e) {
             console.log("Opened files database.");
-            window.SqueakDB = this.result;
+            global.SqueakDB = this.result;
             SqueakDB.onversionchange = function(e) {
-                delete window.SqueakDB;
+                delete global.SqueakDB;
                 this.close();
             };
             SqueakDB.onerror = function(e) {
@@ -433,7 +433,7 @@ Object.extend(Squeak,
         if (typeof SqueakDBFake == "undefined") {
             if (typeof indexedDB == "undefined")
                 console.warn("IndexedDB not supported by this browser, using localStorage");
-            window.SqueakDBFake = {
+            global.SqueakDBFake = {
                 bigFiles: {},
                 bigFileThreshold: 100000,
                 get: function(filename) {
@@ -504,7 +504,7 @@ Object.extend(Squeak,
         var path = this.splitFilePath(filepath);
         if (!path.basename) return errorDo("Invalid path: " + filepath);
         // if we have been writing to memory, return that version
-        if (window.SqueakDBFake && SqueakDBFake.bigFiles[path.fullname])
+        if (global.SqueakDBFake && SqueakDBFake.bigFiles[path.fullname])
             return thenDo(SqueakDBFake.bigFiles[path.fullname]);
         this.dbTransaction("readonly", "get " + filepath, function(fileStore) {
             var getReq = fileStore.get(path.fullname);
@@ -688,7 +688,7 @@ Object.extend(Squeak,
     closeAllFiles: function() {
         // close the files held open in memory
         Squeak.flushAllFiles();
-        delete window.SqueakFiles;
+        delete global.SqueakFiles;
     },
     fetchTemplateDir: function(path, url) {
         // Called on app startup. Fetch url/sqindex.json and
@@ -769,32 +769,32 @@ Object.extend(Squeak,
 },
 "audio", {
     startAudioOut: function() {
-        if (!this.audioOutContext) {
-            var ctxProto = window.AudioContext || window.webkitAudioContext
-                || window.mozAudioContext || window.msAudioContext;
-            this.audioOutContext = ctxProto && new ctxProto();
-        }
+        // if (!this.audioOutContext) {
+        //     var ctxProto = window.AudioContext || window.webkitAudioContext
+        //         || window.mozAudioContext || window.msAudioContext;
+        //     this.audioOutContext = ctxProto && new ctxProto();
+        // }
         return this.audioOutContext;
     },
     startAudioIn: function(thenDo, errorDo) {
-        if (this.audioInContext) {
-            this.audioInSource.disconnect();
-            return thenDo(this.audioInContext, this.audioInSource);
-        }
-        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
-            || navigator.mozGetUserMedia || navigator.msGetUserMedia;
-        if (!navigator.getUserMedia) return errorDo("test: audio input not supported");
-        navigator.getUserMedia({audio: true, toString: function() {return "audio"}},
-            function onSuccess(stream) {
-                var ctxProto = window.AudioContext || window.webkitAudioContext
-                    || window.mozAudioContext || window.msAudioContext;
-                this.audioInContext = ctxProto && new ctxProto();
-                this.audioInSource = this.audioInContext.createMediaStreamSource(stream);
-                thenDo(this.audioInContext, this.audioInSource);
-            },
-            function onError() {
-                errorDo("cannot access microphone");
-            });
+        // if (this.audioInContext) {
+        //     this.audioInSource.disconnect();
+        //     return thenDo(this.audioInContext, this.audioInSource);
+        // }
+        // navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
+        //     || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        // if (!navigator.getUserMedia) return errorDo("test: audio input not supported");
+        // navigator.getUserMedia({audio: true, toString: function() {return "audio"}},
+        //     function onSuccess(stream) {
+        //         var ctxProto = window.AudioContext || window.webkitAudioContext
+        //             || window.mozAudioContext || window.msAudioContext;
+        //         this.audioInContext = ctxProto && new ctxProto();
+        //         this.audioInSource = this.audioInContext.createMediaStreamSource(stream);
+        //         thenDo(this.audioInContext, this.audioInSource);
+        //     },
+        //     function onError() {
+        //         errorDo("cannot access microphone");
+        //     });
     },
     stopAudio: function() {
         if (this.audioInSource)
@@ -1101,7 +1101,7 @@ Object.subclass('Squeak.Image',
         };
         function mapSomeObjectsAsync() {
             if (mapSomeObjects()) {
-                window.setTimeout(mapSomeObjectsAsync, 0);
+                setTimeout(mapSomeObjectsAsync, 0);
             } else {
                 if (thenDo) thenDo();
             }
@@ -1110,7 +1110,7 @@ Object.subclass('Squeak.Image',
             while (mapSomeObjects()) {};   // do it synchronously
             if (thenDo) thenDo();
         } else {
-            window.setTimeout(mapSomeObjectsAsync, 0);
+            setTimeout(mapSomeObjectsAsync, 0);
         }
     },
     decorateKnownObjects: function() {
@@ -1622,7 +1622,7 @@ Object.subclass('Squeak.Image',
             wholeWord = new Uint32Array(dnu.bytes.buffer, 0, 1);
         return this.formatVersion() | (wholeWord[0] & 0xFF000000);
     },
-    loadImageSegment: function(segmentWordArray, outPointerArray) {
+    loadImageSegment: function (segmentWordArray, outPointerArray) {
         // The C VM creates real objects from the segment in-place.
         // We do the same, linking the new objects directly into old-space.
         // The code below is almost the same as readFromBuffer() ... should unify
@@ -2036,7 +2036,8 @@ Object.subclass('Squeak.Object',
             this.isFloat = true;
             this.float = this.decodeFloat(bits, littleEndian, nativeFloats);
             if (this.float == 1.3797216632888e-310) {
-                if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
+                if (false) {
+                // if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
                     // floatDecode workaround disabled
                 } else {
                     this.constructor.prototype.decodeFloat = this.decodeFloatDeoptimized;
@@ -2543,7 +2544,8 @@ Object.subclass('Squeak.ObjectSpur',
                     this.isFloat = true;
                     this.float = this.decodeFloat(bits, littleEndian, true);
                     if (this.float == 1.3797216632888e-310) {
-                        if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
+                        // if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
+                        if (false) {
                             // floatDecode workaround disabled
                         } else {
                             this.constructor.prototype.decodeFloat = this.decodeFloatDeoptimized;
@@ -2773,7 +2775,6 @@ Object.subclass('Squeak.ObjectSpur',
 Object.subclass('Squeak.Interpreter',
 'initialization', {
     initialize: function(image, display) {
-      debugger
         console.log('squeak: initializing interpreter ' + Squeak.vmVersion);
         this.Squeak = Squeak;   // store locally to avoid dynamic lookup in Lively
         this.image = image;
@@ -3139,7 +3140,7 @@ Object.subclass('Squeak.Interpreter',
             if (!continueFunc) throw Error("no continue function");
             continueFunc(0);    //continue without timeout
         }.bind(this);
-        if (frozenDo) window.setTimeout(function(){frozenDo(unfreeze)}, 0);
+        if (frozenDo) setTimeout(function(){frozenDo(unfreeze)}, 0);
         return unfreeze;
     },
     breakOut: function() {
@@ -6129,7 +6130,7 @@ Object.subclass('Squeak.Primitives',
         if (argCount == 0)
             return this.popNandPushIfOK(1, this.makeStString(this.filenameToSqueak(this.vm.image.name)));
         this.vm.image.name = this.filenameFromSqueak(this.vm.top().bytesAsString());
-        window.localStorage['squeakImageName'] = this.vm.image.name;
+        global.localStorage['squeakImageName'] = this.vm.image.name;
         return true;
     },
     primitiveSnapshot: function(argCount) {
@@ -6818,7 +6819,7 @@ Object.subclass('Squeak.Primitives',
         // they must share the contents. That's why all open files
         // are held in the ref-counted global SqueakFiles
         if (typeof SqueakFiles == 'undefined')
-            window.SqueakFiles = {};
+            global.SqueakFiles = {};
         var path = Squeak.splitFilePath(filename);
         if (!path.basename) return null;    // malformed filename
         // fetch or create directory entry
@@ -6972,7 +6973,7 @@ Object.subclass('Squeak.Primitives',
         //    " to " + (this.audioNextTimeSlot + source.buffer.duration).toFixed(3));
         this.audioNextTimeSlot += source.buffer.duration;
         // source.onended is unreliable, using a timeout instead
-        window.setTimeout(function() {
+        setTimeout(function() {
             if (!this.audioContext) return;
             // console.log("sound " + this.audioContext.currentTime.toFixed(3) +
             //    ": done, next time slot " + this.audioNextTimeSlot.toFixed(3));
@@ -7078,12 +7079,12 @@ Object.subclass('Squeak.Primitives',
                 self.audioInSource.connect(self.audioInProcessor);
                 self.audioInProcessor.connect(audioContext.destination);
                 self.vm.popN(argCount);
-                window.setTimeout(unfreeze, 0);
+                setTimeout(unfreeze, 0);
             },
             function onError(msg) {
                 console.warn(msg);
                 self.vm.sendAsPrimitiveFailure(rcvr, method, argCount);
-                window.setTimeout(unfreeze, 0);
+                setTimeout(unfreeze, 0);
             });
         return true;
     },
@@ -7237,7 +7238,8 @@ Object.subclass('Squeak.Primitives',
             console.warn("could not render JPEG");
             errorDo();
         };
-        image.src = (window.URL || window.webkitURL).createObjectURL(blob);
+        console.error('jpeg2_readImageFromBytes <---- NEEDS a port!');
+        // image.src = (window.URL || window.webkitURL).createObjectURL(blob);
     },
     jpeg2_getPixelsFromImage: function(image) {
         var canvas = document.createElement("canvas"),
@@ -7329,7 +7331,7 @@ Object.subclass('Squeak.Primitives',
                 template = localStorage["squeak-template:" + path.dirname];
             if (template) url = JSON.parse(template).url + "/" + path.basename;
         }
-        window.open(url, "_blank"); // likely blocked as pop-up, but what can we do?
+        // window.open(url, "_blank"); // likely blocked as pop-up, but what can we do?
         return this.popNIfOK(argCount);
     },
     scratch_primitiveGetFolderPath: function(argCount) {
@@ -7579,7 +7581,7 @@ Object.subclass('Squeak.Primitives',
         }
     },
     js_objectOrGlobal: function(sqObject) {
-        return 'jsObject' in sqObject ? sqObject.jsObject : window;
+        return 'jsObject' in sqObject ? sqObject.jsObject : global;
     },
 },
 'FFI', {
