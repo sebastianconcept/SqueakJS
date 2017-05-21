@@ -2765,6 +2765,7 @@ Squeak.Object.subclass('Squeak.ObjectSpur',
 Object.subclass('Squeak.Interpreter',
 'initialization', {
     initialize: function(image, display) {
+      debugger
         console.log('squeak: initializing interpreter ' + Squeak.vmVersion);
         this.Squeak = Squeak;   // store locally to avoid dynamic lookup in Lively
         this.image = image;
@@ -7582,7 +7583,7 @@ Object.subclass('Squeak.Primitives',
         var funcName = extLibFunc.pointers[Squeak.ExtLibFunc_name].bytesAsString();
         var args = argsObj.pointers.join(', ');
         this.vm.warnOnce('FFI: ignoring ' + moduleName + ': ' + funcName + '(' + args + ')');
-        return false;        
+        return false;
     },
 },
 'Obsolete', {

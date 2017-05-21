@@ -1,7 +1,8 @@
-var sqModule = require('./sqModule');
-var os = require('os');
+var module = require('./extensions').module;
+Object.extend = require('./extensions').extend;
+Function.prototype.subclass = require('./extensions').subclass;
 
-sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
+module('users.bert.SqueakJS.vm').requires().toRun(function() {
 "use strict";
 /*
  * Copyright (c) 2013-2016 Bert Freudenberg
@@ -25,65 +26,34 @@ sqModule('users.bert.SqueakJS.vm').requires().toRun(function() {
  * THE SOFTWARE.
  */
 
-// console.log('users.bert.SqueakJS.vm -> SqueakJS', users.bert.SqueakJS);
-
 // shorter name for convenience
 var Squeak = users.bert.SqueakJS.vm;
-var SqueakJS = users.bert.SqueakJS;
-
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;
 var localStorage = new LocalStorage('./localStorage');
 
 try {
-  localStorage["squeak-foo:"] = "bar";
-  if (localStorage["squeak-foo:"] !== "bar") throw Error();
-  delete localStorage["squeak-foo:"];
+  localStorage['squeak-foo:'] = 'bar';
+  if (localStorage['squeak-foo:'] !== 'bar') throw Error();
+  delete localStorage['squeak-foo:'];
 } catch(e) {
   console.warn("localStorage not available, faking");
   localStorage = {};
 }
 
-Object.extend = function(obj /* + more args */ ) {
-    // skip arg 0, copy properties of other args to obj
-    for (var i = 1; i < arguments.length; i++)
-        if (typeof arguments[i] == 'object')
-            for (var name in arguments[i])
-                obj[name] = arguments[i][name];
-};
-
-Function.prototype.subclass = function(classPath /* + more args */ ) {
-    // create subclass
-    var subclass = function() {
-        if (this.initialize) this.initialize.apply(this, arguments);
-        return this;
-    };
-    // set up prototype
-    var protoclass = function() { };
-    protoclass.prototype = this.prototype;
-    subclass.prototype = new protoclass();
-    // skip arg 0, copy properties of other args to prototype
-    for (var i = 1; i < arguments.length; i++)
-        Object.extend(subclass.prototype, arguments[i]);
-    // add class to module
-    var modulePath = classPath.split('.'),
-        className = modulePath.pop();
-    sqModule(modulePath.join('.'))[className] = subclass;
-    return subclass;
-};
-
 Object.extend(Squeak,
-'version', {
+"version", {
     // system attributes
-    vmVersion: 'SqueakJS 0.8.3',
-    vmBuild: 'unknown',                 // replace at runtime by last-modified?
-    vmPath: '/',
-    vmFile: 'vm.js',
-    platformName: os.platform(),
-    platformSubtype: 'unknown',
-    osVersion: os.release(),
-    windowSystem: 'none (NodeJS)'
+    vmVersion: "SqueakOnNodeJs 0.1.1",
+    vmDate: "2017-05-20",               // Maybe replace at build time?
+    vmBuild: "unknown",                 // or replace at runtime by last-modified?
+    vmPath: "/",
+    vmFile: "vm.js",
+    platformName: "NodeJS",
+    platformSubtype: "unknown",
+    // osVersion: navigator.userAgent,     // might want to parse
+    windowSystem: "HTML",
 },
 "object header", {
     // object headers
@@ -165,8 +135,8 @@ Object.extend(Squeak,
     Context_closure: 4,
     Context_receiver: 5,
     Context_tempFrameStart: 6,
-    Context_smallFrameSize: 17,
-    Context_largeFrameSize: 57,
+    Context_smallFrameSize: 16,
+    Context_largeFrameSize: 56,
     BlockContext_caller: 0,
     BlockContext_argumentCount: 3,
     BlockContext_initialIP: 4,
@@ -190,6 +160,8 @@ Object.extend(Squeak,
     LinkedList_lastLink: 1,
     //Semaphore layout:
     Semaphore_excessSignals: 2,
+    //Mutex layout:
+    Mutex_owner: 2,
     //Process layout:
     Proc_suspendedContext: 1,
     Proc_priority: 2,
@@ -238,6 +210,13 @@ Object.extend(Squeak,
     // WeakFinalizerItem layout:
     WeakFinalizerItem_list: 0,
     WeakFinalizerItem_next: 1,
+    // ExternalLibraryFunction layout:
+    ExtLibFunc_handle: 0,
+    ExtLibFunc_flags: 1,
+    ExtLibFunc_argTypes: 2,
+    ExtLibFunc_name: 3,
+    ExtLibFunc_module: 4,
+    ExtLibFunc_errorCodeName: 5,
 },
 "events", {
     Mouse_Blue: 1,
@@ -266,6 +245,26 @@ Object.extend(Squeak,
     MaxSmallInt:  0x3FFFFFFF,
     NonSmallInt: -0x50000000,           // non-small and neg (so non pos32 too)
     MillisecondClockMask: 0x1FFFFFFF,
+},
+"error codes", {
+  PrimNoErr: 0,
+  PrimErrGenericFailure: 1,
+  PrimErrBadReceiver: 2,
+  PrimErrBadArgument: 3,
+  PrimErrBadIndex: 4,
+  PrimErrBadNumArgs: 5,
+  PrimErrInappropriate: 6,
+  PrimErrUnsupported: 7,
+  PrimErrNoModification: 8,
+  PrimErrNoMemory: 9,
+  PrimErrNoCMemory: 10,
+  PrimErrNotFound: 11,
+  PrimErrBadMethod: 12,
+  PrimErrNamedInternal: 13,
+  PrimErrObjectMayMove: 14,
+  PrimErrLimitExceeded: 15,
+  PrimErrObjectIsPinned: 16,
+  PrimErrWritePastObject: 17,
 },
 "modules", {
     // don't clobber registered modules
@@ -648,11 +647,22 @@ Object.extend(Squeak,
     },
     splitFilePath: function(filepath) {
         if (filepath[0] !== '/') filepath = '/' + filepath;
-        filepath = filepath.replace(/\/\//ig, '/');      // replace double-slashes
+        filepath = filepath.replace(/\/\//g, '/');      // replace double-slashes
         var matches = filepath.match(/(.*)\/(.*)/),
-            dirname = matches[1].length ? matches[1] : '/',
-            basename = matches[2].length ? matches[2] : null;
+            dirname = matches[1] ? matches[1] : '/',
+            basename = matches[2] ? matches[2] : null;
         return {fullname: filepath, dirname: dirname, basename: basename};
+    },
+    splitUrl: function(url, base) {
+        var matches = url.match(/(.*\/)?(.*)/),
+            uptoslash = matches[1] || '',
+            filename = matches[2] || '';
+        if (!uptoslash.match(/^[a-z]+:\/\//)) {
+            if (base && !base.match(/\/$/)) base += '/';
+            uptoslash = (base || '') + uptoslash;
+            url = uptoslash + filename;
+        }
+        return {full: url, uptoslash: uptoslash, filename: filename};
     },
     flushFile: function(file) {
         if (file.modified) {
@@ -748,7 +758,7 @@ Object.extend(Squeak,
                 Squeak.filePut(path.fullname, buffer);
                 ifFound(buffer);
             } else {
-                alert("Download failed (" + this.status + ") " + url);
+                console.error("Download failed (" + this.status + ") " + url);
                 ifNotFound();
             }
         }
@@ -816,6 +826,9 @@ Object.subclass('Squeak.Image',
     =============
     Each Squeak object is a Squeak.Object instance, only SmallIntegers are JS numbers.
     Instance variables/fields reference other objects directly via the "pointers" property.
+    A Spur image uses Squeak.ObjectSpur instances instead. Characters are not immediate,
+    but made identical using a character table. They are created with their mark bit set to
+    true, so are ignored by the GC.
     {
         sqClass: reference to class object
         format: format integer as in Squeak oop header
@@ -832,16 +845,19 @@ Object.subclass('Squeak.Image',
         isCompact: (optional) true if this is a compact class
         oop: identifies this object in a snapshot (assigned on GC, new space object oops are negative)
         mark: boolean (used only during GC, otherwise false)
-        nextObject: linked list of objects in old space (new space objects do not have this yet)
+        dirty: boolean (true when an object may have a ref to a new object, set on every write, reset on GC)
+        nextObject: linked list of objects in old space and young space (newly created objects do not have this yet)
     }
 
-    Object Table
-    ============
-    There is no actual object table. Instead, objects in old space are a linked list.
+    Object Memory
+    =============
+    Objects in old space are a linked list (firstOldObject). When loading an image, all objects are old.
+    Objects are tenured to old space during a full GC.
     New objects are only referenced by other objects' pointers, and thus can be garbage-collected
     at any time by the Javascript GC.
+    A partial GC links new objects to support enumeration of new space.
 
-    Weak references are only finalized during a full GC.
+    Weak references are finalized by a full GC. A partial GC only finalizes young weak references.
 
     */
     }
@@ -851,10 +867,13 @@ Object.subclass('Squeak.Image',
         this.totalMemory = 100000000;
         this.name = name;
         this.gcCount = 0;
-        this.gcTenured = 0;
         this.gcMilliseconds = 0;
+        this.pgcCount = 0;
+        this.pgcMilliseconds = 0;
+        this.gcTenured = 0;
         this.allocationCount = 0;
         this.oldSpaceCount = 0;
+        this.youngSpaceCount = 0;
         this.newSpaceCount = 0;
         this.hasNewInstances = {};
     },
@@ -869,8 +888,8 @@ Object.subclass('Squeak.Image',
             pos += 4;
             return int;
         };
-        var readBits = function(nWords, format) {
-            if (format < 5) { // pointers (do endian conversion)
+        var readBits = function(nWords, isPointers) {
+            if (isPointers) { // do endian conversion
                 var oops = [];
                 while (oops.length < nWords)
                     oops.push(readWord());
@@ -882,7 +901,7 @@ Object.subclass('Squeak.Image',
             }
         };
         // read version and determine endianness
-        var versions = [6501, 6502, 6504, 6505, 68000, 68002, 68003],
+        var versions = [6501, 6502, 6504, 6505, 6521, 68000, 68002, 68003, 68021],
             version = 0,
             fileHeaderSize = 0;
         while (true) {  // try all four endianness + header combos
@@ -894,8 +913,9 @@ Object.subclass('Squeak.Image',
             if (fileHeaderSize > 512) throw Error("bad image version");
         };
         this.version = version;
-        var nativeFloats = [6505, 68003].indexOf(version) >= 0;
-        this.hasClosures = [6504, 6505, 68002, 68003].indexOf(version) >= 0;
+        var nativeFloats = [6505, 6521, 68003, 68021].indexOf(version) >= 0;
+        this.hasClosures = [6504, 6505, 6521, 68002, 68003, 68021].indexOf(version) >= 0;
+        this.isSpur = [6521, 68021].indexOf(version) >= 0;
         if (version >= 68000) throw Error("64 bit images not supported yet");
         // parse image header
         var imageHeaderSize = readWord();
@@ -903,85 +923,164 @@ Object.subclass('Squeak.Image',
         var oldBaseAddr = readWord(); //object memory base address of image
         var specialObjectsOopInt = readWord(); //oop of array of special oops
         this.lastHash = readWord(); //Should be loaded from, and saved to the image header
-        var savedWindowSize = readWord();
-        var fullScreenFlag = readWord();
-        var extraVMMemory = readWord();
-        pos += imageHeaderSize - (9 * 4); //skip to end of header
-        // read objects
+        this.savedHeaderWords = [];
+        for (var i = 0; i < 6; i++)
+            this.savedHeaderWords.push(readWord());
+        var firstSegSize = readWord();
         var prevObj;
         var oopMap = {};
+        var rawBits = {};
         var headerSize = fileHeaderSize + imageHeaderSize;
-        while (pos < headerSize + objectMemorySize) {
-            var nWords = 0;
-            var classInt = 0;
-            var header = readWord();
-            switch (header & Squeak.HeaderTypeMask) {
-                case Squeak.HeaderTypeSizeAndClass:
-                    nWords = header >> 2;
-                    classInt = readWord();
-                    header = readWord();
-                    break;
-                case Squeak.HeaderTypeClass:
-                    classInt = header - Squeak.HeaderTypeClass;
-                    header = readWord();
-                    nWords = (header >> 2) & 63;
-                    break;
-                case Squeak.HeaderTypeShort:
-                    nWords = (header >> 2) & 63;
-                    classInt = (header >> 12) & 31; //compact class index
-                    //Note classInt<32 implies compact class index
-                    break;
-                case Squeak.HeaderTypeFree:
-                    throw Error("Unexpected free block");
+        pos = headerSize;
+        if (!this.isSpur) {
+            // read traditional object memory
+            while (pos < headerSize + objectMemorySize) {
+                var nWords = 0;
+                var classInt = 0;
+                var header = readWord();
+                switch (header & Squeak.HeaderTypeMask) {
+                    case Squeak.HeaderTypeSizeAndClass:
+                        nWords = header >>> 2;
+                        classInt = readWord();
+                        header = readWord();
+                        break;
+                    case Squeak.HeaderTypeClass:
+                        classInt = header - Squeak.HeaderTypeClass;
+                        header = readWord();
+                        nWords = (header >>> 2) & 63;
+                        break;
+                    case Squeak.HeaderTypeShort:
+                        nWords = (header >>> 2) & 63;
+                        classInt = (header >>> 12) & 31; //compact class index
+                        //Note classInt<32 implies compact class index
+                        break;
+                    case Squeak.HeaderTypeFree:
+                        throw Error("Unexpected free block");
+                }
+                nWords--;  //length includes base header which we have already read
+                var oop = pos - 4 - headerSize, //0-rel byte oop of this object (base header)
+                    format = (header>>>8) & 15,
+                    hash = (header>>>17) & 4095,
+                    bits = readBits(nWords, format < 5);
+                var object = new Squeak.Object();
+                object.initFromImage(oop, classInt, format, hash);
+                if (classInt < 32) object.hash |= 0x10000000;    // see fixCompactOops()
+                if (prevObj) prevObj.nextObject = object;
+                this.oldSpaceCount++;
+                prevObj = object;
+                //oopMap is from old oops to actual objects
+                oopMap[oldBaseAddr + oop] = object;
+                //rawBits holds raw content bits for objects
+                rawBits[oop] = bits;
             }
-            nWords--;  //length includes base header which we have already read
-            var oop = pos - 4 - headerSize, //0-rel byte oop of this object (base header)
-                format = (header>>8) & 15,
-                hash = (header>>17) & 4095,
-                bits = readBits(nWords, format);
-
-            var object = new Squeak.Object();
-            object.initFromImage(oop, classInt, format, hash, bits);
-            if (classInt < 32) object.hash |= 0x10000000;    // see fixCompactOops()
-            if (prevObj) prevObj.nextObject = object;
-            this.oldSpaceCount++;
-            prevObj = object;
-            //oopMap is from old oops to actual objects
-            oopMap[oldBaseAddr + oop] = object;
+            this.firstOldObject = oopMap[oldBaseAddr+4];
+            this.lastOldObject = object;
+            this.oldSpaceBytes = objectMemorySize;
+        } else {
+            // Read all Spur object memory segments
+            this.oldSpaceBytes = firstSegSize - 16;
+            var segmentEnd = pos + firstSegSize,
+                addressOffset = 0,
+                freePageList = null,
+                classPages = null,
+                skippedBytes = 0,
+                oopAdjust = {};
+            while (pos < segmentEnd) {
+                while (pos < segmentEnd - 16) {
+                    // read objects in segment
+                    var objPos = pos,
+                        formatAndClass = readWord(),
+                        sizeAndHash = readWord(),
+                        size = sizeAndHash >>> 24;
+                    if (size === 255) { // reinterpret word as size, read header again
+                        size = formatAndClass;
+                        formatAndClass = readWord();
+                        sizeAndHash = readWord();
+                    }
+                    var oop = addressOffset + pos - 8 - headerSize,
+                        format = (formatAndClass >>> 24) & 0x1F,
+                        classID = formatAndClass & 0x003FFFFF,
+                        hash = sizeAndHash & 0x003FFFFF;
+                    var bits = readBits(size, format < 10 && classID > 0);
+                    pos += (size < 2 ? 2 - size : size & 1) * 4; // align on 8 bytes, 16 min
+                    // low class ids are internal to Spur
+                    if (classID >= 32) {
+                        var object = new Squeak.ObjectSpur();
+                        object.initFromImage(oop, classID, format, hash);
+                        if (prevObj) prevObj.nextObject = object;
+                        this.oldSpaceCount++;
+                        prevObj = object;
+                        //oopMap is from old oops to actual objects
+                        oopMap[oldBaseAddr + oop] = object;
+                        //rawBits holds raw content bits for objects
+                        rawBits[oop] = bits;
+                        oopAdjust[oop] = skippedBytes;
+                    } else {
+                        skippedBytes += pos - objPos;
+                        if (!freePageList) freePageList = bits;         // first hidden obj
+                        else if (!classPages) classPages = bits;        // second hidden obj
+                        if (classID) oopMap[oldBaseAddr + oop] = bits;  // used in spurClassTable()
+                    }
+                }
+                if (pos !== segmentEnd - 16) throw Error("invalid segment");
+                // last 16 bytes in segment is a bridge object
+                var deltaWords = readWord(),
+                    deltaWordsHi = readWord(),
+                    segmentBytes = readWord(),
+                    segmentBytesHi = readWord();
+                //  if segmentBytes is zero, the end of the image has been reached
+                if (segmentBytes !== 0) {
+                    var deltaBytes = deltaWordsHi & 0xFF000000 ? (deltaWords & 0x00FFFFFF) * 4 : 0;
+                    segmentEnd += segmentBytes;
+                    addressOffset += deltaBytes;
+                    skippedBytes += 16 + deltaBytes;
+                    this.oldSpaceBytes += deltaBytes + segmentBytes;
+                }
+            }
+            this.oldSpaceBytes -= skippedBytes;
+            this.firstOldObject = oopMap[oldBaseAddr];
+            this.lastOldObject = object;
         }
-        this.firstOldObject = oopMap[oldBaseAddr+4];
-        this.lastOldObject = object;
-        this.oldSpaceBytes = objectMemorySize;
 
         if (true) {
-            // For debugging: re-create all objects with properly named prototypes
-            var cc = oopMap[oopMap[specialObjectsOopInt].bits[Squeak.splOb_CompactClasses]].bits;
+            // For debugging: re-create all objects from named prototypes
+            var _splObs = oopMap[specialObjectsOopInt],
+                cc = this.isSpur ? this.spurClassTable(oopMap, rawBits, classPages, _splObs)
+                    : rawBits[oopMap[rawBits[_splObs.oop][Squeak.splOb_CompactClasses]].oop];
             var renamedObj = null;
             object = this.firstOldObject;
             prevObj = null;
             while (object) {
                 prevObj = renamedObj;
-                renamedObj = object.renameFromImage(oopMap, cc);
+                renamedObj = object.renameFromImage(oopMap, rawBits, cc);
                 if (prevObj) prevObj.nextObject = renamedObj;
+                else this.firstOldObject = renamedObj;
                 oopMap[oldBaseAddr + object.oop] = renamedObj;
                 object = object.nextObject;
             }
-            this.firstOldObject = oopMap[oldBaseAddr+4];
             this.lastOldObject = renamedObj;
         }
 
-        //create proper objects by mapping via oopMap
+        // properly link objects by mapping via oopMap
         var splObs         = oopMap[specialObjectsOopInt];
-        var compactClasses = oopMap[splObs.bits[Squeak.splOb_CompactClasses]].bits;
-        var floatClass     = oopMap[splObs.bits[Squeak.splOb_ClassFloat]];
+        var compactClasses = rawBits[oopMap[rawBits[splObs.oop][Squeak.splOb_CompactClasses]].oop];
+        var floatClass     = oopMap[rawBits[splObs.oop][Squeak.splOb_ClassFloat]];
+        // Spur needs different arguments for installFromImage()
+        if (this.isSpur) {
+            var charClass = oopMap[rawBits[splObs.oop][Squeak.splOb_ClassCharacter]];
+            this.initCharacterTable(charClass);
+            compactClasses = this.spurClassTable(oopMap, rawBits, classPages, splObs);
+            nativeFloats = this.getCharacter.bind(this);
+            this.initSpurOverrides();
+        }
         var obj = this.firstOldObject,
             done = 0,
             self = this;
         function mapSomeObjects() {
             if (obj) {
-                var stop = done + (self.oldSpaceCount / 10 | 0);    // do it in 10 chunks
+                var stop = done + (self.oldSpaceCount / 20 | 0);    // do it in 20 chunks
                 while (obj && done < stop) {
-                    obj.installFromImage(oopMap, compactClasses, floatClass, littleEndian, nativeFloats);
+                    obj.installFromImage(oopMap, rawBits, compactClasses, floatClass, littleEndian, nativeFloats);
                     obj = obj.nextObject;
                     done++;
                 }
@@ -990,8 +1089,12 @@ Object.subclass('Squeak.Image',
             } else { // done
                 self.specialObjectsArray = splObs;
                 self.decorateKnownObjects();
-                self.fixCompiledMethods();
-                self.fixCompactOops();
+                if (self.isSpur) {
+                    self.fixSkippedOops(oopAdjust);
+                } else {
+                    self.fixCompiledMethods();
+                    self.fixCompactOops();
+                }
                 return false;   // don't do more
             }
         };
@@ -1003,22 +1106,24 @@ Object.subclass('Squeak.Image',
             }
         };
         if (!progressDo) {
-            while (mapSomeObjects());   // do it synchronously
+            while (mapSomeObjects()) {};   // do it synchronously
             if (thenDo) thenDo();
         } else {
             window.setTimeout(mapSomeObjectsAsync, 0);
         }
-     },
+    },
     decorateKnownObjects: function() {
         var splObjs = this.specialObjectsArray.pointers;
         splObjs[Squeak.splOb_NilObject].isNil = true;
         splObjs[Squeak.splOb_TrueObject].isTrue = true;
         splObjs[Squeak.splOb_FalseObject].isFalse = true;
         splObjs[Squeak.splOb_ClassFloat].isFloatClass = true;
-        this.compactClasses = this.specialObjectsArray.pointers[Squeak.splOb_CompactClasses].pointers;
-        for (var i = 0; i < this.compactClasses.length; i++)
-            if (!this.compactClasses[i].isNil)
-                this.compactClasses[i].isCompact = true;
+        if (!this.isSpur) {
+            this.compactClasses = this.specialObjectsArray.pointers[Squeak.splOb_CompactClasses].pointers;
+            for (var i = 0; i < this.compactClasses.length; i++)
+                if (!this.compactClasses[i].isNil)
+                    this.compactClasses[i].isCompact = true;
+        }
         if (!Number.prototype.sqInstName)
             Object.defineProperty(Number.prototype, 'sqInstName', {
                 enumerable: false,
@@ -1028,6 +1133,7 @@ Object.subclass('Squeak.Image',
     fixCompactOops: function() {
         // instances of compact classes might have been saved with a non-compact header
         // fix their oops here so validation succeeds later
+        if (this.isSpur) return;
         var obj = this.firstOldObject,
             adjust = 0;
         while (obj) {
@@ -1052,16 +1158,26 @@ Object.subclass('Squeak.Image',
         var obj = this.firstOldObject,
             compiledMethodClass = this.specialObjectsArray.pointers[Squeak.splOb_ClassCompiledMethod];
         while (obj) {
-            if (obj.format >= 12) obj.sqClass = compiledMethodClass;
+            if (obj.isMethod()) obj.sqClass = compiledMethodClass;
             obj = obj.nextObject;
         }
     },
-},
-'garbage collection', {
-    partialGC: function() {
-        // no partial GC needed since new space uses the Javascript GC
-        return this.totalMemory - this.oldSpaceBytes;
+    fixSkippedOops: function(oopAdjust) {
+        // reading Spur skips some internal objects
+        // we adjust the oops of following objects here
+        // this is like the compaction phase of our GC
+        var obj = this.firstOldObject;
+        while (obj) {
+            obj.oop -= oopAdjust[obj.oop];
+            obj = obj.nextObject;
+        }
+        // do a sanity check
+        obj = this.lastOldObject;
+        if (obj.addr() + obj.totalBytes() !== this.oldSpaceBytes)
+            throw Error("image size doesn't match object sizes")
     },
+},
+'garbage collection - full', {
     fullGC: function(reason) {
         // Collect garbage and return first tenured object (to support object enumeration)
         // Old space is a linked list of objects - each object has an "nextObject" reference.
@@ -1069,7 +1185,6 @@ Object.subclass('Squeak.Image',
         // But they have an allocation id so the survivors can be ordered on tenure.
         // The "nextObject" references are created by collecting all new objects,
         // sorting them by id, and then linking them into old space.
-
         this.vm.addMessage("fullGC: " + reason);
         var start = Date.now();
         var newObjects = this.markReachableObjects();
@@ -1078,24 +1193,31 @@ Object.subclass('Squeak.Image',
         this.finalizeWeakReferences();
         this.allocationCount += this.newSpaceCount;
         this.newSpaceCount = 0;
+        this.youngSpaceCount = 0;
         this.hasNewInstances = {};
         this.gcCount++;
         this.gcMilliseconds += Date.now() - start;
+        console.log("Full GC (" + reason + "): " + (Date.now() - start) + " ms");
         return newObjects.length > 0 ? newObjects[0] : null;
     },
+    gcRoots: function() {
+        // the roots of the system
+        this.vm.storeContextRegisters();        // update active context
+        return [this.specialObjectsArray, this.vm.activeContext];
+    },
     markReachableObjects: function() {
-        // Visit all reachable objects and mark them.
+        // FullGC: Visit all reachable objects and mark them.
         // Return surviving new objects
         // Contexts are handled specially: they have garbage beyond the stack pointer
         // which must not be traced, and is cleared out here
         // In weak objects, only the inst vars are traced
-        this.vm.storeContextRegisters();        // update active context
-        var todo = [this.specialObjectsArray, this.vm.activeContext];
+        var todo = this.gcRoots();
         var newObjects = [];
+        this.weakObjects = [];
         while (todo.length > 0) {
             var object = todo.pop();
-            if (object.mark) continue;             // objects are added to todo more than once
-            if (!object.nextObject && object !== this.lastOldObject)       // it's a new object
+            if (object.mark) continue;    // objects are added to todo more than once
+            if (object.oop < 0)           // it's a new object
                 newObjects.push(object);
             object.mark = true;           // mark it
             if (!object.sqClass.mark)     // trace class if not marked
@@ -1103,23 +1225,26 @@ Object.subclass('Squeak.Image',
             var body = object.pointers;
             if (body) {                   // trace all unmarked pointers
                 var n = body.length;
+                if (object.isWeak()) {
+                    n = object.sqClass.classInstSize();     // do not trace weak fields
+                    this.weakObjects.push(object);
+                }
                 if (this.vm.isContext(object)) {            // contexts have garbage beyond SP
                     n = object.contextSizeWithStack();
                     for (var i = n; i < body.length; i++)   // clean up that garbage
                         body[i] = this.vm.nilObj;
-                } else if (object.sqClass.isWeak()) {       // do not trace the indexed part in weak arrays
-                    n = object.sqClass.classInstSize();
                 }
                 for (var i = 0; i < n; i++)
-                    if (typeof body[i] === "object" && !body[i].mark)      // except SmallInts
+                    if (typeof body[i] === "object" && !body[i].mark)      // except immediates
                         todo.push(body[i]);
+                // Note: "immediate" character objects in Spur always stay marked
             }
         }
-        // sort by oop to preserve creation order
-        return newObjects.sort(function(a,b){return b.oop - a.oop});
+        // pre-spur sort by oop to preserve creation order
+        return this.isSpur ? newObjects : newObjects.sort(function(a,b){return b.oop - a.oop});
     },
     removeUnmarkedOldObjects: function() {
-        // Unlink unmarked old objects from the nextObject linked list
+        // FullGC: Unlink unmarked old objects from the nextObject linked list
         // Reset marks of remaining objects, and adjust their oops
         // Set this.lastOldObject to last old object
         var removedCount = 0,
@@ -1134,6 +1259,8 @@ Object.subclass('Squeak.Image',
                 this.oldSpaceCount -= removedCount;
                 return;
             }
+            // reset partial GC flag
+            if (next.dirty) next.dirty = false;
             // if marked, continue with next object
             if (next.mark) {
                 obj = next;
@@ -1150,7 +1277,7 @@ Object.subclass('Squeak.Image',
         }
     },
     appendToOldObjects: function(newObjects) {
-        // append new objects to linked list of old objects
+        // FullGC: append new objects to linked list of old objects
         // and unmark them
         var oldObj = this.lastOldObject;
         //var oldBytes = this.oldSpaceBytes;
@@ -1162,41 +1289,152 @@ Object.subclass('Squeak.Image',
             oldObj = newObj;
             //console.log("tenuring " + (i+1) + " " + (this.oldSpaceBytes - oldBytes) + " " + newObj.totalBytes() + " " + newObj.toString());
         }
+        oldObj.nextObject = null;   // might have been in young space
         this.lastOldObject = oldObj;
         this.oldSpaceCount += newObjects.length;
         this.gcTenured += newObjects.length;
     },
+    tenureIfYoung: function(object) {
+        if (object.oop < 0) {
+            this.appendToOldObjects([object]);
+        }
+    },
     finalizeWeakReferences: function() {
         // nil out all weak fields that did not survive GC
-        var weakObj = this.firstOldObject;
-        while (weakObj) {
-            if (weakObj.sqClass.isWeak()) {
-                var pointers = weakObj.pointers || [],
-                    firstWeak = weakObj.sqClass.classInstSize(),
-                    finalized = false;
-                for (var i = firstWeak; i < pointers.length; i++) {
-                    if (pointers[i].oop < 0) {    // ref is not in old-space
-                        pointers[i] = this.vm.nilObj;
-                        finalized = true;
-                    }
+        var weakObjects = this.weakObjects;
+        this.weakObjects = null;
+        for (var o = 0; o < weakObjects.length; o++) {
+            var weakObj = weakObjects[o],
+                pointers = weakObj.pointers,
+                firstWeak = weakObj.sqClass.classInstSize(),
+                finalized = false;
+            for (var i = firstWeak; i < pointers.length; i++) {
+                if (pointers[i].oop < 0) {    // ref is not in old-space
+                    pointers[i] = this.vm.nilObj;
+                    finalized = true;
                 }
-                if (finalized) {
-                    this.vm.pendingFinalizationSignals++;
-                    if (firstWeak >= 2) { // check if weak obj is a finalizer item
-                        var list = weakObj.pointers[Squeak.WeakFinalizerItem_list];
-                        if (list.sqClass == this.vm.specialObjects[Squeak.splOb_ClassWeakFinalizer]) {
-                            // add weak obj as first in the finalization list
-                            var items = list.pointers[Squeak.WeakFinalizationList_first];
-                            weakObj.pointers[Squeak.WeakFinalizerItem_next] = items;
-                            list.pointers[Squeak.WeakFinalizationList_first] = weakObj;
-                        }
+            }
+            if (finalized) {
+                this.vm.pendingFinalizationSignals++;
+                if (firstWeak >= 2) { // check if weak obj is a finalizer item
+                    var list = weakObj.pointers[Squeak.WeakFinalizerItem_list];
+                    if (list.sqClass == this.vm.specialObjects[Squeak.splOb_ClassWeakFinalizer]) {
+                        // add weak obj as first in the finalization list
+                        var items = list.pointers[Squeak.WeakFinalizationList_first];
+                        weakObj.pointers[Squeak.WeakFinalizerItem_next] = items;
+                        list.pointers[Squeak.WeakFinalizationList_first] = weakObj;
                     }
                 }
             }
-            weakObj = weakObj.nextObject;
         };
         if (this.vm.pendingFinalizationSignals > 0) {
             this.vm.forceInterruptCheck();                      // run finalizer asap
+        }
+    },
+},
+'garbage collection - partial', {
+    partialGC: function(reason) {
+        // make a linked list of young objects
+        // and finalize weak refs
+        this.vm.addMessage("partialGC: " + reason);
+        var start = Date.now();
+        var young = this.findYoungObjects();
+        this.appendToYoungSpace(young);
+        this.finalizeWeakReferences();
+        this.cleanupYoungSpace(young);
+        this.allocationCount += this.newSpaceCount - young.length;
+        this.youngSpaceCount = young.length;
+        this.newSpaceCount = this.youngSpaceCount;
+        this.pgcCount++;
+        this.pgcMilliseconds += Date.now() - start;
+        console.log("Partial GC (" + reason+ "): " + (Date.now() - start) + " ms");
+        return young[0];
+    },
+    youngRoots: function() {
+        // PartialGC: Find new objects directly pointed to by old objects.
+        // For speed we only scan "dirty" objects that have been written to
+        var roots = this.gcRoots().filter(function(obj){return obj.oop < 0;}),
+            object = this.firstOldObject;
+        while (object) {
+            if (object.dirty) {
+                var body = object.pointers,
+                    dirty = false;
+                for (var i = 0; i < body.length; i++) {
+                    var child = body[i];
+                    if (typeof child === "object" && child.oop < 0) { // if child is new
+                        roots.push(child);
+                        dirty = true;
+                    }
+                }
+                object.dirty = dirty;
+            }
+            object = object.nextObject;
+        }
+        return roots;
+    },
+    findYoungObjects: function() {
+        // PartialGC: find new objects transitively reachable from old objects
+        var todo = this.youngRoots(),     // direct pointers from old space
+            newObjects = [];
+        this.weakObjects = [];
+        while (todo.length > 0) {
+            var object = todo.pop();
+            if (object.mark) continue;    // objects are added to todo more than once
+            newObjects.push(object);
+            object.mark = true;           // mark it
+            if (object.sqClass.oop < 0)   // trace class if new
+                todo.push(object.sqClass);
+            var body = object.pointers;
+            if (body) {                   // trace all unmarked pointers
+                var n = body.length;
+                if (object.isWeak()) {
+                    n = object.sqClass.classInstSize();     // do not trace weak fields
+                    this.weakObjects.push(object);
+                }
+                if (this.vm.isContext(object)) {            // contexts have garbage beyond SP
+                    n = object.contextSizeWithStack();
+                    for (var i = n; i < body.length; i++)   // clean up that garbage
+                        body[i] = this.vm.nilObj;
+                }
+                for (var i = 0; i < n; i++) {
+                    var child = body[i];
+                    if (typeof child === "object" && child.oop < 0)
+                        todo.push(body[i]);
+                }
+            }
+        }
+        // pre-spur sort by oop to preserve creation order
+        return this.isSpur ? newObjects : newObjects.sort(function(a,b){return b.oop - a.oop});
+    },
+    appendToYoungSpace: function(objects) {
+        // PartialGC: link new objects into young list
+        // and give them positive oops temporarily so finalization works
+        var tempOop = this.lastOldObject.oop + 1;
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+            if (this.hasNewInstances[obj.oop]) {
+                delete this.hasNewInstances[obj.oop];
+                this.hasNewInstances[tempOop] = true;
+            }
+            obj.oop = tempOop;
+            obj.nextObject = objects[i + 1];
+            tempOop++;
+        }
+    },
+    cleanupYoungSpace: function(objects) {
+        // PartialGC: After finalizing weak refs, make oops
+        // in young space negative again
+        var obj = objects[0],
+            youngOop = -1;
+        while (obj) {
+            if (this.hasNewInstances[obj.oop]) {
+                delete this.hasNewInstances[obj.oop];
+                this.hasNewInstances[youngOop] = true;
+            }
+            obj.oop = youngOop;
+            obj.mark = false;
+            obj = obj.nextObject;
+            youngOop--;
         }
     },
 },
@@ -1205,9 +1443,14 @@ Object.subclass('Squeak.Image',
         // We don't actually register the object yet, because that would prevent
         // it from being garbage-collected by the Javascript collector
         obj.oop = -(++this.newSpaceCount); // temp oops are negative. Real oop assigned when surviving GC
-        // Note this is also done in loadImageSegment()
         this.lastHash = (13849 + (27181 * this.lastHash)) & 0xFFFFFFFF;
         return this.lastHash & 0xFFF;
+    },
+    registerObjectSpur: function(obj) {
+        // We don't actually register the object yet, because that would prevent
+        // it from being garbage-collected by the Javascript collector
+        obj.oop = -(++this.newSpaceCount); // temp oops are negative. Real oop assigned when surviving GC
+        return 0; // actual hash created on demand
     },
     instantiateClass: function(aClass, indexableSize, filler) {
         var newObject = new (aClass.classInstProto()); // Squeak.Object
@@ -1231,10 +1474,11 @@ Object.subclass('Squeak.Image',
         var n = fromArray.length;
         if (n !== toArray.length)
             return false;
-        // need to visit all objects, so ensure new objects have
-        // nextObject pointers and permanent oops
+        // need to visit all objects: find young objects now
+        // so oops do not change later
+        var firstYoungObject = null;
         if (this.newSpaceCount > 0)
-            this.fullGC("become");              // does update context
+            firstYoungObject = this.partialGC("become");  // does update context
         else
             this.vm.storeContextRegisters();    // still need to update active context
         // obj.oop used as dict key here is why we store them
@@ -1259,48 +1503,76 @@ Object.subclass('Squeak.Image',
             fromArray[i].hash = toArray[i].hash;
             toArray[i].hash = fromHash;
         }
+        // temporarily append young objects to old space
+        this.lastOldObject.nextObject = firstYoungObject;
         // Now, for every object...
         var obj = this.firstOldObject;
         while (obj) {
             // mutate the class
             var mut = mutations[obj.sqClass.oop];
-            if (mut) obj.sqClass = mut;
+            if (mut) {
+                obj.sqClass = mut;
+                if (mut.oop < 0) obj.dirty = true;
+            }
             // and mutate body pointers
             var body = obj.pointers;
             if (body) for (var j = 0; j < body.length; j++) {
                 mut = mutations[body[j].oop];
-                if (mut) body[j] = mut;
+                if (mut) {
+                    body[j] = mut;
+                    if (mut.oop < 0) obj.dirty = true;
+                }
             }
             obj = obj.nextObject;
         }
+        // separate old / young space again
+        this.lastOldObject.nextObject = null;
         this.vm.flushMethodCacheAfterBecome(mutations);
         return true;
     },
     objectAfter: function(obj) {
-        // if this was the last old object, tenure new objects and try again
-        return obj.nextObject || (this.newSpaceCount > 0 && this.fullGC("nextObject"));
+        // if this was the last old object, continue with young objects
+        return obj.nextObject || this.nextObjectWithGC("nextObject", obj);
     },
     someInstanceOf: function(clsObj) {
         var obj = this.firstOldObject;
-        while (true) {
+        while (obj) {
             if (obj.sqClass === clsObj)
                 return obj;
-            obj = obj.nextObject || this.nextObjectWithGCFor(clsObj);
-            if (!obj) return null;
+            obj = obj.nextObject || this.nextObjectWithGCFor(obj, clsObj);
         }
+        return null;
     },
     nextInstanceAfter: function(obj) {
         var clsObj = obj.sqClass;
         while (true) {
-            obj = obj.nextObject || this.nextObjectWithGCFor(clsObj);
+            obj = obj.nextObject || this.nextObjectWithGCFor(obj, clsObj);
             if (!obj) return null;
             if (obj.sqClass === clsObj)
                 return obj;
         }
     },
-    nextObjectWithGCFor: function(clsObj) {
-        if (this.newSpaceCount === 0 || !this.hasNewInstances[clsObj.oop]) return null;
-        return this.fullGC("instance of " + clsObj.className());
+    nextObjectWithGC: function(reason, obj) {
+        // obj is either the last object in old space (after enumerating it)
+        // or young space (after enumerating the list returned by partialGC)
+        // or a random new object
+        var limit = obj.oop > 0 ? 0 : this.youngSpaceCount;
+        if (this.newSpaceCount <= limit) return null; // no more objects
+        if (obj.oop < 0) this.fullGC(reason); // found a non-young new object
+        return this.partialGC(reason);
+    },
+    nextObjectWithGCFor: function(obj, clsObj) {
+        if (!this.hasNewInstances[clsObj.oop]) return null;
+        return this.nextObjectWithGC("instance of " + clsObj.className(), obj);
+    },
+    allInstancesOf: function(clsObj) {
+        var obj = this.firstOldObject,
+            result = [];
+        while (obj) {
+            if (obj.sqClass === clsObj) result.push(obj);
+            obj = obj.nextObject || this.nextObjectWithGCFor(obj, clsObj);
+        }
+        return result;
     },
     writeToBuffer: function() {
         var headerSize = 64,
@@ -1342,7 +1614,7 @@ Object.subclass('Squeak.Image',
         return this.totalMemory - this.oldSpaceBytes;
     },
     formatVersion: function() {
-        return this.hasClosures ? 6504 : 6502;
+        return this.isSpur ? 6521 : this.hasClosures ? 6504 : 6502;
     },
     segmentVersion: function() {
         var dnu = this.specialObjectsArray.pointers[Squeak.splOb_SelectorDoesNotUnderstand],
@@ -1350,8 +1622,8 @@ Object.subclass('Squeak.Image',
         return this.formatVersion() | (wholeWord[0] & 0xFF000000);
     },
     loadImageSegment: function(segmentWordArray, outPointerArray) {
-        // The C VM creates real objects from the segment in-place. We need to create
-        // real objects, which we just put in new space.
+        // The C VM creates real objects from the segment in-place.
+        // We do the same, linking the new objects directly into old-space.
         // The code below is almost the same as readFromBuffer() ... should unify
         var data = new DataView(segmentWordArray.words.buffer),
             littleEndian = false,
@@ -1385,26 +1657,30 @@ Object.subclass('Squeak.Image',
             }
         }
         // read objects
-        var segment = [],
-            oopMap = {};
+        this.tenureIfYoung(segmentWordArray);
+        var prevObj = segmentWordArray,
+            endMarker = prevObj.nextObject,
+            oopOffset = segmentWordArray.oop,
+            oopMap = {},
+            rawBits = {};
         while (pos < data.byteLength) {
             var nWords = 0,
                 classInt = 0,
                 header = readWord();
             switch (header & Squeak.HeaderTypeMask) {
                 case Squeak.HeaderTypeSizeAndClass:
-                    nWords = header >> 2;
+                    nWords = header >>> 2;
                     classInt = readWord();
                     header = readWord();
                     break;
                 case Squeak.HeaderTypeClass:
                     classInt = header - Squeak.HeaderTypeClass;
                     header = readWord();
-                    nWords = (header >> 2) & 63;
+                    nWords = (header >>> 2) & 63;
                     break;
                 case Squeak.HeaderTypeShort:
-                    nWords = (header >> 2) & 63;
-                    classInt = (header >> 12) & 31; //compact class index
+                    nWords = (header >>> 2) & 63;
+                    classInt = (header >>> 12) & 31; //compact class index
                     //Note classInt<32 implies compact class index
                     break;
                 case Squeak.HeaderTypeFree:
@@ -1412,15 +1688,19 @@ Object.subclass('Squeak.Image',
             }
             nWords--;  //length includes base header which we have already read
             var oop = pos, //0-rel byte oop of this object (base header)
-                format = (header>>8) & 15,
-                hash = (header>>17) & 4095,
+                format = (header>>>8) & 15,
+                hash = (header>>>17) & 4095,
                 bits = readBits(nWords, format);
 
             var object = new Squeak.Object();
-            object.initFromImage(oop, classInt, format, hash, bits);
-            segment.push(object);
+            object.initFromImage(oop + oopOffset, classInt, format, hash);
+            prevObj.nextObject = object;
+            this.oldSpaceCount++;
+            prevObj = object;
             oopMap[oop] = object;
+            rawBits[oop + oopOffset] = bits;
         }
+        object.nextObject = endMarker;
         // add outPointers to oopMap
         for (var i = 0; i < outPointerArray.pointers.length; i++)
             oopMap[0x80000004 + i * 4] = outPointerArray.pointers[i];
@@ -1429,18 +1709,212 @@ Object.subclass('Squeak.Image',
             fakeClsOop = 0, // make up a compact-classes array with oops, as if loading an image
             compactClassOops = compactClasses.map(function(cls) {
                 oopMap[--fakeClsOop] = cls; return fakeClsOop; });
-        // map objects using oopMap, and assign new oops
-        var roots = oopMap[8] || oopMap[12] || oopMap[16],      // might be 1/2/3 header words
-            floatClass = this.specialObjectsArray.pointers[Squeak.splOb_ClassFloat];
-        for (var i = 0; i < segment.length; i++) {
-            var obj = segment[i];
-            obj.installFromImage(oopMap, compactClassOops, floatClass, littleEndian, nativeFloats);
-            obj.oop = -(++this.newSpaceCount);  // make this a proper new-space object (see registerObject)
-            this.hasNewInstances[obj.sqClass.oop] = true;   // need GC to find all instances
-        }
-        // don't truncate segmentWordArray now like the C VM does. It does not seem to be
-        // worth the trouble of adjusting the following oops
+        // truncate segmentWordArray array to one element
+        segmentWordArray.words = new Uint32Array([segmentWordArray.words[0]]);
+        // map objects using oopMap
+        var roots = segmentWordArray.nextObject,
+            floatClass = this.specialObjectsArray.pointers[Squeak.splOb_ClassFloat],
+            obj = roots;
+        do {
+            obj.installFromImage(oopMap, rawBits, compactClassOops, floatClass, littleEndian, nativeFloats);
+            obj = obj.nextObject;
+        } while (obj !== endMarker);
         return roots;
+    },
+},
+'spur support',
+{
+    initSpurOverrides: function() {
+        this.registerObject = this.registerObjectSpur;
+        this.writeToBuffer = this.writeToBufferSpur;
+    },
+    spurClassTable: function(oopMap, rawBits, classPages, splObjs) {
+        var classes = {},
+            nil = this.firstOldObject;
+        // read class table pages
+        for (var p = 0; p < 4096; p++) {
+            var page = oopMap[classPages[p]];
+            if (page.oop) page = rawBits[page.oop]; // page was not properly hidden
+            if (page.length === 1024) for (var i = 0; i < 1024; i++) {
+                var entry = oopMap[page[i]];
+                if (!entry) throw Error("Invalid class table entry (oop " + page[i] + ")");
+                if (entry !== nil) {
+                    var classIndex = p * 1024 + i;
+                    classes[classIndex] = entry;
+                }
+            }
+        }
+        // add known classes which may not be in the table
+        for (var key in Squeak) {
+            if (/^splOb_Class/.test(key)) {
+                var knownClass = oopMap[rawBits[splObjs.oop][Squeak[key]]];
+                if (knownClass !== nil) {
+                    var classIndex = knownClass.hash;
+                    if (classIndex > 0 && classIndex < 1024)
+                        classes[classIndex] = knownClass;
+                }
+            }
+        }
+        classes[3] = classes[1];      // SmallInteger needs two entries
+        this.classTable = classes;
+        this.classTableIndex = 1024;  // first page is special
+        return classes;
+    },
+    enterIntoClassTable: function(newClass) {
+        var index = this.classTableIndex,
+            table = this.classTable;
+        while (index <= 0x3FFFFF) {
+            if (!table[index]) {
+                table[index] = newClass;
+                newClass.hash = index;
+                this.classTableIndex = index;
+                return index;
+            }
+            index++;
+        }
+        console.error("class table full?"); // todo: clean out old class table entries
+        return null;
+    },
+    initCharacterTable: function(characterClass) {
+        characterClass.classInstProto("Character"); // provide name
+        this.characterClass = characterClass;
+        this.characterTable = {};
+    },
+    getCharacter: function(unicode) {
+        var char = this.characterTable[unicode];
+        if (!char) {
+            char = new this.characterClass.instProto;
+            char.initInstanceOfChar(this.characterClass, unicode);
+            this.characterTable[unicode] = char;
+        }
+        return char;
+    },
+    ensureClassesInTable: function() {
+        // make sure all classes are in class table
+        // answer number of class pages
+        var obj = this.firstOldObject;
+        var maxIndex = 1024; // at least one page
+        while (obj) {
+            var cls = obj.sqClass;
+            if (cls.hash === 0) this.enterIntoClassTable(cls);
+            if (cls.hash > maxIndex) maxIndex = cls.hash;
+            if (this.classTable[cls.hash] !== cls) throw Error("Class not in class table");
+            obj = obj.nextObject;
+        }
+        return (maxIndex >> 10) + 1;
+    },
+    classTableBytes: function(numPages) {
+        // space needed for master table and minor pages
+        return (4 + 4104 + numPages * (4 + 1024)) * 4;
+    },
+    writeFreeLists: function(data, pos, littleEndian, oopOffset) {
+        // we fake an empty free lists object
+        data.setUint32(pos, 0x0A000012, littleEndian); pos += 4;
+        data.setUint32(pos, 0x20000000, littleEndian); pos += 4;
+        pos += 32 * 4;  // 32 zeros
+        return pos;
+    },
+    writeClassTable: function(data, pos, littleEndian, objToOop, numPages) {
+        // write class tables as Spur expects them, faking their oops
+        var nilFalseTrueBytes = 3 * 16,
+            freeListBytes = 8 + 32 * 4,
+            majorTableSlots = 4096 + 8,         // class pages plus 8 hiddenRootSlots
+            minorTableSlots = 1024,
+            majorTableBytes = 16 + majorTableSlots * 4,
+            minorTableBytes = 16 + minorTableSlots * 4,
+            firstPageOop = nilFalseTrueBytes + freeListBytes + majorTableBytes + 8;
+        // major table
+        data.setUint32(pos, majorTableSlots, littleEndian); pos += 4;
+        data.setUint32(pos,      0xFF000000, littleEndian); pos += 4;
+        data.setUint32(pos,      0x02000010, littleEndian); pos += 4;
+        data.setUint32(pos,      0xFF000000, littleEndian); pos += 4;
+        for (var p = 0; p < numPages; p++) {
+            data.setUint32(pos, firstPageOop + p * minorTableBytes, littleEndian); pos += 4;
+        }
+        pos += (majorTableSlots - numPages) * 4;  // rest is nil
+        // minor tables
+        var classID = 0;
+        for (var p = 0; p < numPages; p++) {
+            data.setUint32(pos, minorTableSlots, littleEndian); pos += 4;
+            data.setUint32(pos,      0xFF000000, littleEndian); pos += 4;
+            data.setUint32(pos,      0x02000010, littleEndian); pos += 4;
+            data.setUint32(pos,      0xFF000000, littleEndian); pos += 4;
+            for (var i = 0; i < minorTableSlots; i++) {
+                var classObj = this.classTable[classID];
+                if (classObj && classObj.pointers) {
+                    if (!classObj.hash) throw Error("class without id");
+                    if (classObj.hash !== classID && classID >= 32) {
+                        console.warn("freeing class index " + classID + " " + classObj.className());
+                        classObj = null;
+                    }
+                }
+                if (classObj) data.setUint32(pos, objToOop(classObj), littleEndian);
+                pos += 4;
+                classID++;
+            }
+        }
+        return pos;
+    },
+    writeToBufferSpur: function() {
+        var headerSize = 64,
+            trailerSize = 16,
+            freeListsSize = 136,
+            numPages = this.ensureClassesInTable(),
+            hiddenSize = freeListsSize + this.classTableBytes(numPages),
+            data = new DataView(new ArrayBuffer(headerSize + hiddenSize + this.oldSpaceBytes + trailerSize)),
+            littleEndian = true,
+            start = Date.now(),
+            pos = 0;
+        function writeWord(word) {
+            data.setUint32(pos, word, littleEndian);
+            pos += 4;
+        };
+        function objToOop(obj) {
+            if (typeof obj === "number")
+                return obj << 1 | 1; // add tag bit
+            if (obj._format === 7) {
+                if (obj.hash !== (obj.oop >> 2) || (obj.oop & 3) !== 2)
+                    throw Error("Bad immediate char");
+                return obj.oop;
+            }
+            if (obj.oop < 0) throw Error("temporary oop");
+            // oops after nil/false/true are shifted by size of hidden objects
+            return obj.oop < 48 ? obj.oop : obj.oop + hiddenSize;
+        };
+        writeWord(this.formatVersion()); // magic number
+        writeWord(headerSize);
+        writeWord(hiddenSize + this.oldSpaceBytes + trailerSize); // end of memory
+        writeWord(this.firstOldObject.addr()); // base addr (0)
+        writeWord(objToOop(this.specialObjectsArray));
+        writeWord(this.lastHash);
+        this.savedHeaderWords.forEach(writeWord);
+        writeWord(hiddenSize + this.oldSpaceBytes + trailerSize); //first segment size
+        while (pos < headerSize)
+            writeWord(0);
+        // write objects
+        var obj = this.firstOldObject,
+            n = 0;
+        pos = obj.writeTo(data, pos, littleEndian, objToOop); obj = obj.nextObject; n++; // write nil
+        pos = obj.writeTo(data, pos, littleEndian, objToOop); obj = obj.nextObject; n++; // write false
+        pos = obj.writeTo(data, pos, littleEndian, objToOop); obj = obj.nextObject; n++; // write true
+        pos = this.writeFreeLists(data, pos, littleEndian, objToOop); // write hidden free list
+        pos = this.writeClassTable(data, pos, littleEndian, objToOop, numPages); // write hidden class table
+        while (obj) {
+            pos = obj.writeTo(data, pos, littleEndian, objToOop);
+            obj = obj.nextObject;
+            n++;
+        }
+        // write segement trailer
+        writeWord(0x4A000003);
+        writeWord(0x00800000);
+        writeWord(0);
+        writeWord(0);
+        // done
+        if (pos !== data.byteLength) throw Error("wrong image size");
+        if (n !== this.oldSpaceCount) throw Error("wrong object count");
+        var time = Date.now() - start;
+        console.log("Wrote " + n + " objects in " + time + " ms, image size " + pos + " bytes")
+        return data.buffer;
     },
 });
 
@@ -1451,10 +1925,10 @@ Object.subclass('Squeak.Object',
         this.hash = hash;
         var instSpec = aClass.pointers[Squeak.Class_format],
             instSize = ((instSpec>>1) & 0x3F) + ((instSpec>>10) & 0xC0) - 1; //0-255
-        this.format = (instSpec>>7) & 0xF; //This is the 0-15 code
+        this._format = (instSpec>>7) & 0xF; //This is the 0-15 code
 
-        if (this.format < 8) {
-            if (this.format != 6) {
+        if (this._format < 8) {
+            if (this._format != 6) {
                 if (instSize + indexableSize > 0)
                     this.pointers = this.fillArray(instSize + indexableSize, nilObj);
             } else // Words
@@ -1466,7 +1940,7 @@ Object.subclass('Squeak.Object',
                         this.words = new Uint32Array(indexableSize);
         } else // Bytes
             if (indexableSize > 0) {
-                // this.format |= -indexableSize & 3;       //deferred to writeTo()
+                // this._format |= -indexableSize & 3;       //deferred to writeTo()
                 this.bytes = new Uint8Array(indexableSize); //Methods require further init of pointers
             }
 
@@ -1491,7 +1965,7 @@ Object.subclass('Squeak.Object',
     initAsClone: function(original, hash) {
         this.sqClass = original.sqClass;
         this.hash = hash;
-        this.format = original.format;
+        this._format = original._format;
         if (original.isFloat) {
             this.isFloat = original.isFloat;
             this.float = original.float;
@@ -1501,35 +1975,35 @@ Object.subclass('Squeak.Object',
             if (original.bytes) this.bytes = new Uint8Array(original.bytes);     // copy
         }
     },
-    initFromImage: function(oop, cls, fmt, hsh, data) {
+    initFromImage: function(oop, cls, fmt, hsh) {
         // initial creation from Image, with unmapped data
         this.oop = oop;
         this.sqClass = cls;
-        this.format = fmt;
+        this._format = fmt;
         this.hash = hsh;
-        this.bits = data;
     },
-    classNameFromImage: function(oopMap) {
-        var name = oopMap[this.bits[Squeak.Class_name]];
-        if (name && name.format >= 8 && name.format < 12) {
-            var bytes = name.decodeBytes(name.bits.length, name.bits, 0, name.format & 3);
+    classNameFromImage: function(oopMap, rawBits) {
+        var name = oopMap[rawBits[this.oop][Squeak.Class_name]];
+        if (name && name._format >= 8 && name._format < 12) {
+            var bits = rawBits[name.oop],
+                bytes = name.decodeBytes(bits.length, bits, 0, name._format & 3);
             return Squeak.bytesAsString(bytes);
         }
         return "Class";
     },
-    renameFromImage: function(oopMap, ccArray) {
+    renameFromImage: function(oopMap, rawBits, ccArray) {
         var classObj = this.sqClass < 32 ? oopMap[ccArray[this.sqClass-1]] : oopMap[this.sqClass];
-        var instProto = classObj.instProto || classObj.classInstProto(classObj.classNameFromImage(oopMap));
+        if (!classObj) return this;
+        var instProto = classObj.instProto || classObj.classInstProto(classObj.classNameFromImage(oopMap, rawBits));
         if (!instProto) return this;
         var renamedObj = new instProto; // Squeak.Object
         renamedObj.oop = this.oop;
         renamedObj.sqClass = this.sqClass;
-        renamedObj.format = this.format;
+        renamedObj._format = this._format;
         renamedObj.hash = this.hash;
-        renamedObj.bits = this.bits;
         return renamedObj;
     },
-    installFromImage: function(oopMap, ccArray, floatClass, littleEndian, nativeFloats) {
+    installFromImage: function(oopMap, rawBits, ccArray, floatClass, littleEndian, nativeFloats) {
         //Install this object by decoding format, and rectifying pointers
         var ccInt = this.sqClass;
         // map compact classes
@@ -1537,43 +2011,43 @@ Object.subclass('Squeak.Object',
             this.sqClass = oopMap[ccArray[ccInt-1]];
         else
             this.sqClass = oopMap[ccInt];
-        var nWords = this.bits.length;
-        if (this.format < 5) {
+        var bits = rawBits[this.oop],
+            nWords = bits.length;
+        if (this._format < 5) {
             //Formats 0...4 -- Pointer fields
             if (nWords > 0) {
-                var oops = this.bits; // endian conversion was already done
+                var oops = bits; // endian conversion was already done
                 this.pointers = this.decodePointers(nWords, oops, oopMap);
             }
-        } else if (this.format >= 12) {
+        } else if (this._format >= 12) {
             //Formats 12-15 -- CompiledMethods both pointers and bits
-            var methodHeader = this.decodeWords(1, this.bits, littleEndian)[0],
+            var methodHeader = this.decodeWords(1, bits, littleEndian)[0],
                 numLits = (methodHeader>>10) & 255,
-                oops = this.decodeWords(numLits+1, this.bits, littleEndian);
+                oops = this.decodeWords(numLits+1, bits, littleEndian);
             this.pointers = this.decodePointers(numLits+1, oops, oopMap); //header+lits
-            this.bytes = this.decodeBytes(nWords-(numLits+1), this.bits, numLits+1, this.format & 3);
-        } else if (this.format >= 8) {
+            this.bytes = this.decodeBytes(nWords-(numLits+1), bits, numLits+1, this._format & 3);
+        } else if (this._format >= 8) {
             //Formats 8..11 -- ByteArrays (and ByteStrings)
             if (nWords > 0)
-                this.bytes = this.decodeBytes(nWords, this.bits, 0, this.format & 3);
+                this.bytes = this.decodeBytes(nWords, bits, 0, this._format & 3);
         } else if (this.sqClass == floatClass) {
             //These words are actually a Float
             this.isFloat = true;
-            this.float = this.decodeFloat(this.bits, littleEndian, nativeFloats);
+            this.float = this.decodeFloat(bits, littleEndian, nativeFloats);
             if (this.float == 1.3797216632888e-310) {
                 if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
                     // floatDecode workaround disabled
                 } else {
                     this.constructor.prototype.decodeFloat = this.decodeFloatDeoptimized;
-                    this.float = this.decodeFloat(this.bits, littleEndian, nativeFloats);
+                    this.float = this.decodeFloat(bits, littleEndian, nativeFloats);
                     if (this.float == 1.3797216632888e-310)
                         throw Error("Cannot deoptimize decodeFloat");
                 }
             }
         } else {
             if (nWords > 0)
-                this.words = this.decodeWords(nWords, this.bits, littleEndian);
+                this.words = this.decodeWords(nWords, bits, littleEndian);
         }
-        delete this.bits;
         this.mark = false; // for GC
     },
     decodePointers: function(nWords, theBits, oopMap) {
@@ -1644,6 +2118,34 @@ Object.subclass('Squeak.Object',
         return array;
     },
 },
+'testing', {
+    isWords: function() {
+        return this._format === 6;
+    },
+    isBytes: function() {
+        var fmt = this._format;
+        return fmt >= 8 && fmt <= 11;
+    },
+    isWordsOrBytes: function() {
+        var fmt = this._format;
+        return fmt == 6  || (fmt >= 8 && fmt <= 11);
+    },
+    isPointers: function() {
+        return this._format <= 4;
+    },
+    isWeak: function() {
+        return this._format === 4;
+    },
+    isMethod: function() {
+        return this._format >= 12;
+    },
+    sameFormats: function(a, b) {
+        return a < 8 ? a === b : (a & 0xC) === (b & 0xC);
+    },
+    sameFormatAs: function(obj) {
+        return this.sameFormats(this._format, obj._format);
+    },
+},
 'printing', {
     toString: function() {
         return this.sqInstName();
@@ -1663,7 +2165,7 @@ Object.subclass('Squeak.Object',
             value = value * 256 + this.bytes[i];
         }
         var sign = negative ? '-' : '',
-            approx = value >= 9007199254740992 ? '≈' : '';
+            approx = value > 0x1FFFFFFFFFFFFF ? '≈' : '';
         return sign + '16r' + digits.join('') + ' (' + approx + sign + value + 'L)';
     },
     assnKeyAsString: function() {
@@ -1673,7 +2175,7 @@ Object.subclass('Squeak.Object',
         // one-based index
         var instSize = this.instSize();
         if (index <= instSize)
-            return this.sqClass.allInstVarNames()[index - 1];
+            return this.sqClass.allInstVarNames()[index - 1] || 'ivar' + (index - 1);
         else
             return (index - instSize).toString();
     },
@@ -1696,29 +2198,13 @@ Object.subclass('Squeak.Object',
             case 'ReadOnlyVariableBinding': return this.pointers.join("->");
             case 'LargePositiveInteger': return this.bytesAsNumberString(false);
             case 'LargeNegativeInteger': return this.bytesAsNumberString(true);
-            case 'Character': return "$" + String.fromCharCode(this.pointers[0]) + " (" + this.pointers[0].toString() + ")";
+            case 'Character': var unicode = this.pointers ? this.pointers[0] : this.hash; // Spur
+                return "$" + String.fromCharCode(unicode) + " (" + unicode.toString() + ")";
         }
-        return  /^[aeiou]/i.test(className) ? 'an ' + className : 'a ' + className;
+        return  /^[aeiou]/i.test(className) ? 'an' + className : 'a' + className;
     },
 },
 'accessing', {
-    isWords: function() {
-        return this.format === 6;
-    },
-    isBytes: function() {
-        var fmt = this.format;
-        return fmt >= 8 && fmt <= 11;
-    },
-    isWordsOrBytes: function() {
-        var fmt = this.format;
-        return fmt == 6  || (fmt >= 8 && fmt <= 11);
-    },
-    isPointers: function() {
-        return this.format <= 4;
-    },
-    isMethod: function() {
-        return this.format >= 12;
-    },
     pointersSize: function() {
         return this.pointers ? this.pointers.length : 0;
     },
@@ -1729,9 +2215,20 @@ Object.subclass('Squeak.Object',
         return this.isFloat ? 2 : this.words ? this.words.length : 0;
     },
     instSize: function() {//same as class.classInstSize, but faster from format
-        if (this.format>4 || this.format==2) return 0; //indexable fields only
-        if (this.format<2) return this.pointersSize(); //indexable fields only
-        return this.sqClass.classInstSize(); //0-255
+        var fmt = this._format;
+        if (fmt > 4 || fmt === 2) return 0;      //indexable fields only
+        if (fmt < 2) return this.pointersSize(); //fixed fields only
+        return this.sqClass.classInstSize();
+    },
+    indexableSize: function(primHandler) {
+        var fmt = this._format;
+        if (fmt < 2) return -1; //not indexable
+        if (fmt === 3 && primHandler.vm.isContext(this) && !primHandler.allowAccessBeyondSP)
+            return this.pointers[Squeak.Context_stackPointer]; // no access beyond top of stacks
+        if (fmt < 6) return this.pointersSize() - this.instSize(); // pointers
+        if (fmt < 8) return this.wordsSize(); // words
+        if (fmt < 12) return this.bytesSize(); // bytes
+        return this.bytesSize() + (4 * this.pointersSize()); // methods
     },
     floatData: function() {
         var buffer = new ArrayBuffer(8);
@@ -1769,7 +2266,7 @@ Object.subclass('Squeak.Object',
         if (this.words) return this.words;
         if (this.uint32Array) return this.uint32Array;
         if (!this.bytes) return null;
-        return this.uint32Array = new Uint32Array(this.bytes.buffer, 0, this.bytes.length >> 2);
+        return this.uint32Array = new Uint32Array(this.bytes.buffer, 0, this.bytes.length >>> 2);
     },
     setAddr: function(addr) {
         // Move this object to addr by setting its oop. Answer address after this object.
@@ -1787,7 +2284,7 @@ Object.subclass('Squeak.Object',
             this.words ? this.words.length :
             this.pointers ? this.pointers.length : 0;
         // methods have both pointers and bytes
-        if (this.bytes) nWords += (this.bytes.length + 3) >> 2;
+        if (this.bytes) nWords += (this.bytes.length + 3) >>> 2;
         nWords++; // one header word always present
         var extraHeader = nWords > 63 ? 2 : this.sqClass.isCompact ? 0 : 1;
         return {header: extraHeader, body: nWords};
@@ -1802,10 +2299,10 @@ Object.subclass('Squeak.Object',
     },
     writeTo: function(data, pos, image) {
         // Write 1 to 3 header words encoding type, class, and size, then instance data
-        if (this.bytes) this.format |= -this.bytes.length & 3;
+        if (this.bytes) this._format |= -this.bytes.length & 3;
         var beforePos = pos,
             size = this.snapshotSize(),
-            formatAndHash = ((this.format & 15) << 8) | ((this.hash & 4095) << 17);
+            formatAndHash = ((this._format & 15) << 8) | ((this.hash & 4095) << 17);
         // write header words first
         switch (size.header) {
             case 2:
@@ -1846,21 +2343,25 @@ Object.subclass('Squeak.Object',
     },
 },
 'as class', {
+    classInstFormat: function() {
+        return (this.pointers[Squeak.Class_format] >> 7) & 0xF;
+    },
     classInstSize: function() {
         // this is a class, answer number of named inst vars
-        var format = this.pointers[Squeak.Class_format];
-        return ((format >> 10) & 0xC0) + ((format >> 1) & 0x3F) - 1;
-    },
-    isWeak: function() {
-        var format = this.pointers[Squeak.Class_format];
-        return ((format >> 7) & 0xF) == 4;
+        var spec = this.pointers[Squeak.Class_format];
+        return ((spec >> 10) & 0xC0) + ((spec >> 1) & 0x3F) - 1;
     },
     instVarNames: function() {
-        var index = this.pointers.length > 12 ? 4 :
-            this.pointers.length > 9 ? 3 : 4; // index changed in newer images
-        return (this.pointers[index].pointers || []).map(function(each) {
-            return each.bytesAsString();
-        });
+        // index changed from 4 to 3 in newer images
+        for (var index = 3; index <= 4; index++) {
+            var varNames = this.pointers[index].pointers;
+            if (varNames && varNames.length && varNames[0].bytes) {
+                return varNames.map(function(each) {
+                    return each.bytesAsString();
+                });
+            }
+        }
+        return [];
     },
     allInstVarNames: function() {
         var superclass = this.superclass();
@@ -1874,21 +2375,28 @@ Object.subclass('Squeak.Object',
     },
     className: function() {
         if (!this.pointers) return "_NOTACLASS_";
-        var name = this.pointers[Squeak.Class_name];
-        if (name && name.bytes) return name.bytesAsString();
+        for (var nameIdx = 6; nameIdx <= 7; nameIdx++) {
+            var name = this.pointers[nameIdx];
+            if (name && name.bytes) return name.bytesAsString();
+        }
         // must be meta class
         for (var clsIndex = 5; clsIndex <= 6; clsIndex++) {
             var cls = this.pointers[clsIndex];
             if (cls && cls.pointers) {
-                name = cls.pointers[Squeak.Class_name];
-                if (name && name.bytes) return name.bytesAsString() + " class";
+                for (var nameIdx = 6; nameIdx <= 7; nameIdx++) {
+                    var name = cls.pointers[nameIdx];
+                    if (name && name.bytes) return name.bytesAsString() + " class";
+                }
             }
         }
         return "_SOMECLASS_";
     },
+    defaultInst: function() {
+        return Squeak.Object;
+    },
     classInstProto: function(className) {
         if (this.instProto) return this.instProto;
-        var proto = Squeak.Object;  // in case below fails
+        var proto = this.defaultInst();  // in case below fails
         try {
             if (!className) className = this.className();
             var safeName = className.replace(/[^A-Za-z0-9]/g,'_');
@@ -1898,24 +2406,21 @@ Object.subclass('Squeak.Object',
             else safeName = ((/^[AEIOU]/.test(safeName)) ? 'an' : 'a') + safeName;
             // fail okay if no eval()
             proto = new Function("return function " + safeName + "() {};")();
-            proto.prototype = Squeak.Object.prototype;
+            proto.prototype = this.defaultInst().prototype;
         } catch(e) {}
         Object.defineProperty(this, 'instProto', { value: proto });
         return proto;
     },
 },
 'as method', {
-    methodHeader: function() {
-        return this.pointers[0];
-    },
     methodNumLits: function() {
-        return this.pointers.length - 1;
+        return (this.pointers[0]>>9) & 0xFF;
     },
     methodNumArgs: function() {
-        return (this.methodHeader()>>24) & 0xF;
+        return (this.pointers[0]>>24) & 0xF;
     },
     methodPrimitiveIndex: function() {
-        var primBits = (this.methodHeader()) & 0x300001FF;
+        var primBits = this.pointers[0] & 0x300001FF;
         if (primBits > 0x1FF)
             return (primBits & 0x1FF) + (primBits >> 19);
         else
@@ -1926,22 +2431,19 @@ Object.subclass('Squeak.Object',
         return assn.pointers[Squeak.Assn_value];
     },
     methodNeedsLargeFrame: function() {
-        return (this.methodHeader() & 0x20000) > 0;
+        return (this.pointers[0] & 0x20000) > 0;
     },
     methodAddPointers: function(headerAndLits) {
         this.pointers = headerAndLits;
     },
     methodTempCount: function() {
-        return (this.methodHeader()>>18) & 63;
+        return (this.pointers[0]>>18) & 63;
     },
     methodGetLiteral: function(zeroBasedIndex) {
         return this.pointers[1+zeroBasedIndex]; // step over header
     },
     methodGetSelector: function(zeroBasedIndex) {
         return this.pointers[1+zeroBasedIndex]; // step over header
-    },
-    methodSetLiteral: function(zeroBasedIndex, value) {
-        this.pointers[1+zeroBasedIndex] = value; // step over header
     },
 },
 'as context',
@@ -1969,9 +2471,308 @@ Object.subclass('Squeak.Object',
     },
 });
 
+// Squeak.Object.subclass('Squeak.ObjectSpur',
+Object.subclass('Squeak.ObjectSpur',
+'initialization',
+{
+    initInstanceOf: function(aClass, indexableSize, hash, nilObj) {
+        this.sqClass = aClass;
+        this.hash = hash;
+        var instSpec = aClass.pointers[Squeak.Class_format],
+            instSize = instSpec & 0xFFFF,
+            format = (instSpec>>16) & 0x1F
+        this._format = format;
+        if (format < 12) {
+            if (format < 10) {
+                if (instSize + indexableSize > 0)
+                    this.pointers = this.fillArray(instSize + indexableSize, nilObj);
+            } else // Words
+                if (indexableSize > 0)
+                    if (aClass.isFloatClass) {
+                        this.isFloat = true;
+                        this.float = 0.0;
+                    } else
+                        this.words = new Uint32Array(indexableSize);
+        } else // Bytes
+            if (indexableSize > 0) {
+                // this._format |= -indexableSize & 3;       //deferred to writeTo()
+                this.bytes = new Uint8Array(indexableSize);  //Methods require further init of pointers
+            }
+//      Definition of Spur's format code...
+//
+//    0 = 0 sized objects (UndefinedObject True False et al)
+//    1 = non-indexable objects with inst vars (Point et al)
+//    2 = indexable objects with no inst vars (Array et al)
+//    3 = indexable objects with inst vars (MethodContext AdditionalMethodState et al)
+//    4 = weak indexable objects with inst vars (WeakArray et al)
+//    5 = weak non-indexable objects with inst vars (ephemerons) (Ephemeron)
+//    6 = unused
+//    7 = immediates (SmallInteger, Character)
+//    8 = unused
+//    9 = 64-bit indexable
+//  10-11 = 32-bit indexable (Bitmap)         (plus one odd bit, unused in 32-bits)
+//  12-15 = 16-bit indexable              (plus two odd bits, one unused in 32-bits)
+//  16-23 = 8-bit indexable             (plus three odd bits, one unused in 32-bits)
+//  24-31 = compiled methods (CompiledMethod) (plus three odd bits, one unused in 32-bits)
+    },
+    installFromImage: function(oopMap, rawBits, classTable, floatClass, littleEndian, getCharacter) {
+        //Install this object by decoding format, and rectifying pointers
+        var classID = this.sqClass;
+        if (classID < 32) throw Error("Invalid class ID: " + classID);
+        this.sqClass = classTable[classID];
+        if (!this.sqClass) throw Error("Class ID not in class table: " + classID);
+        var bits = rawBits[this.oop],
+            nWords = bits.length;
+        switch (this._format) {
+            case 0: // zero sized object
+                break;
+            case 1: // only inst vars
+            case 2: // only indexed vars
+            case 3: // inst vars and indexed vars
+            case 4: // only indexed vars (weak)
+            case 5: // only inst vars (weak)
+                if (nWords > 0) {
+                    var oops = bits; // endian conversion was already done
+                    this.pointers = this.decodePointers(nWords, oops, oopMap, getCharacter);
+                }
+                break;
+            case 10: // 32 bit array
+                if (this.sqClass === floatClass) {
+                    //These words are actually a Float
+                    this.isFloat = true;
+                    this.float = this.decodeFloat(bits, littleEndian, true);
+                    if (this.float == 1.3797216632888e-310) {
+                        if (/noFloatDecodeWorkaround/.test(window.location.hash)) {
+                            // floatDecode workaround disabled
+                        } else {
+                            this.constructor.prototype.decodeFloat = this.decodeFloatDeoptimized;
+                            this.float = this.decodeFloat(bits, littleEndian, true);
+                            if (this.float == 1.3797216632888e-310)
+                                throw Error("Cannot deoptimize decodeFloat");
+                        }
+                    }
+                } else if (nWords > 0) {
+                    this.words = this.decodeWords(nWords, bits, littleEndian);
+                }
+                break
+            case 12: // 16 bit array
+            case 13: // 16 bit array (odd length)
+                throw Error("16 bit arrays not supported yet");
+            case 16: // 8 bit array
+            case 17: // ... length-1
+            case 18: // ... length-2
+            case 19: // ... length-3
+                if (nWords > 0)
+                    this.bytes = this.decodeBytes(nWords, bits, 0, this._format & 3);
+                break;
+            case 24: // CompiledMethod
+            case 25: // CompiledMethod
+            case 26: // CompiledMethod
+            case 27: // CompiledMethod
+                var rawHeader = this.decodeWords(1, bits, littleEndian)[0];
+                if (rawHeader & 0x80000000) throw Error("Alternate bytecode set not supported")
+                var numLits = (rawHeader >> 1) & 0x7FFF,
+                    oops = this.decodeWords(numLits+1, bits, littleEndian);
+                this.pointers = this.decodePointers(numLits+1, oops, oopMap, getCharacter); //header+lits
+                this.bytes = this.decodeBytes(nWords-(numLits+1), bits, numLits+1, this._format & 3);
+                break
+            default:
+                throw Error("Unknown object format: " + this._format);
+
+        }
+        this.mark = false; // for GC
+    },
+    decodePointers: function(nWords, theBits, oopMap, getCharacter) {
+        //Convert immediate objects and look up object pointers in oopMap
+        var ptrs = new Array(nWords);
+        for (var i = 0; i < nWords; i++) {
+            var oop = theBits[i];
+            if ((oop & 1) === 1) {          // SmallInteger
+                ptrs[i] = oop >> 1;
+            } else if ((oop & 3) === 2) {   // Character
+                ptrs[i] = getCharacter(oop >>> 2);
+            } else {                        // Object
+                ptrs[i] = oopMap[oop] || 42424242;
+                // when loading a context from image segment, there is
+                // garbage beyond its stack pointer, resulting in the oop
+                // not being found in oopMap. We just fill in an arbitrary
+                // SmallInteger - it's never accessed anyway
+            }
+        }
+        return ptrs;
+    },
+    initInstanceOfChar: function(charClass, unicode) {
+        this.oop = (unicode << 2) | 2;
+        this.sqClass = charClass;
+        this.hash = unicode;
+        this._format = 7;
+        this.mark = true;   // stays always marked so not traced by GC
+    },
+    classNameFromImage: function(oopMap, rawBits) {
+        var name = oopMap[rawBits[this.oop][Squeak.Class_name]];
+        if (name && name._format >= 16 && name._format < 24) {
+            var bits = rawBits[name.oop],
+                bytes = name.decodeBytes(bits.length, bits, 0, name._format & 7);
+            return Squeak.bytesAsString(bytes);
+        }
+        return "Class";
+    },
+    renameFromImage: function(oopMap, rawBits, classTable) {
+        var classObj = classTable[this.sqClass];
+        if (!classObj) return this;
+        var instProto = classObj.instProto || classObj.classInstProto(classObj.classNameFromImage(oopMap, rawBits));
+        if (!instProto) return this;
+        var renamedObj = new instProto; // Squeak.SpurObject
+        renamedObj.oop = this.oop;
+        renamedObj.sqClass = this.sqClass;
+        renamedObj._format = this._format;
+        renamedObj.hash = this.hash;
+        return renamedObj;
+    },
+},
+'accessing', {
+    instSize: function() {//same as class.classInstSize, but faster from format
+        if (this._format < 2) return this.pointersSize(); //fixed fields only
+        return this.sqClass.classInstSize();
+    },
+    indexableSize: function(primHandler) {
+        var fmt = this._format;
+        if (fmt < 2) return -1; //not indexable
+        if (fmt === 3 && primHandler.vm.isContext(this))
+            return this.pointers[Squeak.Context_stackPointer]; // no access beyond top of stacks
+        if (fmt < 6) return this.pointersSize() - this.instSize(); // pointers
+        if (fmt < 12) return this.wordsSize(); // words
+        if (fmt < 16) return this.shortsSize(); // shorts
+        if (fmt < 24) return this.bytesSize(); // bytes
+        return 4 * this.pointersSize() + this.bytesSize(); // methods
+    },
+    snapshotSize: function() {
+        // words of extra object header and body this object would take up in image snapshot
+        // body size includes header size that is always present
+        var nWords =
+            this.isFloat ? 2 :
+            this.words ? this.words.length :
+            this.pointers ? this.pointers.length : 0;
+        // methods have both pointers and bytes
+        if (this.bytes) nWords += (this.bytes.length + 3) >>> 2;
+        var extraHeader = nWords >= 255 ? 2 : 0;
+        nWords += nWords & 1; // align to 8 bytes
+        nWords += 2; // one 64 bit header always present
+        if (nWords < 4) nWords = 4; // minimum object size
+        return {header: extraHeader, body: nWords};
+    },
+    writeTo: function(data, pos, littleEndian, objToOop) {
+        var nWords =
+            this.isFloat ? 2 :
+            this.words ? this.words.length :
+            this.pointers ? this.pointers.length : 0;
+        if (this.bytes) {
+            nWords += (this.bytes.length + 3) >>> 2;
+            this._format |= -this.bytes.length & 3;
+        }
+        var beforePos = pos,
+            formatAndClass = (this._format << 24) | (this.sqClass.hash & 0x003FFFFF),
+            sizeAndHash = (nWords << 24) | (this.hash & 0x003FFFFF);
+        // write extra header if needed
+        if (nWords >= 255) {
+            data.setUint32(pos, nWords, littleEndian); pos += 4;
+            sizeAndHash = (255 << 24) | (this.hash & 0x003FFFFF);
+            data.setUint32(pos, sizeAndHash, littleEndian); pos += 4;
+        }
+        // write regular header
+        data.setUint32(pos, formatAndClass, littleEndian); pos += 4;
+        data.setUint32(pos, sizeAndHash, littleEndian); pos += 4;
+        // now write body, if any
+        if (this.isFloat) {
+            data.setFloat64(pos, this.float, littleEndian); pos += 8;
+        } else if (this.words) {
+            for (var i = 0; i < this.words.length; i++) {
+                data.setUint32(pos, this.words[i], littleEndian); pos += 4;
+            }
+        } else if (this.pointers) {
+            for (var i = 0; i < this.pointers.length; i++) {
+                data.setUint32(pos, objToOop(this.pointers[i]), littleEndian); pos += 4;
+            }
+        }
+        // no "else" because CompiledMethods have both pointers and bytes
+        if (this.bytes) {
+            for (var i = 0; i < this.bytes.length; i++)
+                data.setUint8(pos++, this.bytes[i]);
+            // skip to next word
+            pos += -this.bytes.length & 3;
+        }
+        // minimum object size is 16, align to 8 bytes
+        if (nWords === 0) pos += 8;
+        else pos += (nWords & 1) * 4;
+        // done
+        if (pos !== beforePos + this.totalBytes()) throw Error("written size does not match");
+        return pos;
+    },
+},
+'testing', {
+    isBytes: function() {
+        var fmt = this._format;
+        return fmt >= 16 && fmt <= 23;
+    },
+    isPointers: function() {
+        return this._format <= 6;
+    },
+    isWords: function() {
+        return this._format === 10;
+    },
+    isWordsOrBytes: function() {
+        var fmt = this._format;
+        return fmt === 10 || (fmt >= 16 && fmt <= 23);
+    },
+    isWeak: function() {
+        return this._format === 4;
+    },
+    isMethod: function() {
+        return this._format >= 24;
+    },
+    sameFormats: function(a, b) {
+        return a < 16 ? a === b : (a & 0xF8) === (b & 0xF8);
+    },
+},
+'as class', {
+    defaultInst: function() {
+        return Squeak.ObjectSpur;
+    },
+    classInstFormat: function() {
+        return (this.pointers[Squeak.Class_format] >> 16) & 0x1F;
+    },
+    classInstSize: function() {
+        // this is a class, answer number of named inst vars
+        return this.pointers[Squeak.Class_format] & 0xFFFF;
+    },
+    classByteSizeOfInstance: function(nElements) {
+        var format = this.classInstFormat(),
+            nWords = this.classInstSize();
+        if (format < 9) nWords += nElements;                        // 32 bit
+        else if (format >= 16) nWords += (nElements + 3) / 4 | 0;   //  8 bit
+        else if (format >= 12) nWords += (nElements + 1) / 2 | 0;   // 16 bit
+        else if (format >= 10) nWords += nElements;                 // 32 bit
+        else nWords += nElements * 2;                               // 64 bit
+        nWords += nWords & 1;                                       // align to 64 bits
+        nWords += nWords >= 255 ? 4 : 2;                            // header words
+        if (nWords < 4) nWords = 4;                                 // minimum object size
+        return nWords * 4;
+  },
+},
+'as method', {
+    methodNumLits: function() {
+        return this.pointers[0] & 0x7FFF;
+    },
+    methodPrimitiveIndex: function() {
+        if ((this.pointers[0] & 0x10000) === 0) return 0;
+        return this.bytes[1] + 256 * this.bytes[2];
+    },
+});
+
 Object.subclass('Squeak.Interpreter',
 'initialization', {
     initialize: function(image, display) {
+      debugger
         console.log('squeak: initializing interpreter ' + Squeak.vmVersion);
         this.Squeak = Squeak;   // store locally to avoid dynamic lookup in Lively
         this.image = image;
@@ -2036,6 +2837,7 @@ Object.subclass('Squeak.Interpreter',
         var sched = schedAssn.pointers[Squeak.Assn_value];
         var proc = sched.pointers[Squeak.ProcSched_activeProcess];
         this.activeContext = proc.pointers[Squeak.Proc_suspendedContext];
+        this.activeContext.dirty = true;
         this.fetchContextRegisters(this.activeContext);
         this.reclaimableContextCount = 0;
     },
@@ -2056,7 +2858,8 @@ Object.subclass('Squeak.Interpreter',
             if (globalsClass === "Environment")
                 return globals.pointers[2].pointers[1].pointers
         }
-        throw Error("cannot find global dict");
+        console.warn("cannot find global dict");
+        return [];
     },
     initCompiler: function() {
         if (!Squeak.Compiler)
@@ -2101,6 +2904,10 @@ Object.subclass('Squeak.Interpreter',
                 console.warn("Hacking " + each.method);
             }
         }, this);
+        // Pharo
+        if (this.findMethod("PharoClassInstaller>>initialize")) {
+            Squeak.platformName = "unix";
+        }
     },
 },
 'interpreting', {
@@ -2113,7 +2920,7 @@ Object.subclass('Squeak.Interpreter',
                 }
                 this.breakNow();
             }
-            this.byteCodeCount += this.method.compiled(this);
+            this.method.compiled(this);
             return;
         }
         var Squeak = this.Squeak; // avoid dynamic lookup of "Squeak" in Lively
@@ -2149,6 +2956,7 @@ Object.subclass('Squeak.Interpreter',
 
             // storeAndPop rcvr, temp
             case 0x60: case 0x61: case 0x62: case 0x63: case 0x64: case 0x65: case 0x66: case 0x67:
+                this.receiver.dirty = true;
                 this.receiver.pointers[b&7] = this.pop(); return;
             case 0x68: case 0x69: case 0x6A: case 0x6B: case 0x6C: case 0x6D: case 0x6E: case 0x6F:
                 this.homeContext.pointers[Squeak.Context_tempFrameStart+(b&7)] = this.pop(); return;
@@ -2192,7 +3000,8 @@ Object.subclass('Squeak.Interpreter',
             // Closures
             case 0x8A: this.pushNewArray(this.nextByte());   // create new temp vector
                 return;
-            case 0x8B: this.nono(); return;
+            case 0x8B: this.callPrimBytecode();
+                return;
             case 0x8C: b2 = this.nextByte(); // remote push from temp vector
                 this.push(this.homeContext.pointers[Squeak.Context_tempFrameStart+this.nextByte()].pointers[b2]);
                 return;
@@ -2277,24 +3086,7 @@ Object.subclass('Squeak.Interpreter',
         }
         throw Error("not a bytecode: " + b);
     },
-    interpret: function() {
-        // run until idle or break
-        // Answers the result.
-        this.isIdle = false;
-        this.breakOutOfInterpreter = false;
-
-        while (this.breakOutOfInterpreter === false)
-            if (this.method.compiled) {
-                this.byteCodeCount += this.method.compiled(this);
-            } else {
-                this.interpretOne();
-            }
-
-        // normally, we answer regularly
-        var result = this.breakOutOfInterpreter === 'break' ? 'break' : this.isIdle 
-        return result;
-    },
-    interpretThenDo: function(forMilliseconds, thenDo) {
+    interpret: function(forMilliseconds, thenDo) {
         // run for a couple milliseconds (but only until idle or break)
         // answer milliseconds to sleep (until next timer wakeup)
         // or 'break' if reached breakpoint
@@ -2305,7 +3097,7 @@ Object.subclass('Squeak.Interpreter',
         this.breakOutTick = this.primHandler.millisecondClockValue() + (forMilliseconds || 500);
         while (this.breakOutOfInterpreter === false)
             if (this.method.compiled) {
-                this.byteCodeCount += this.method.compiled(this);
+                this.method.compiled(this);
             } else {
                 this.interpretOne();
             }
@@ -2353,7 +3145,7 @@ Object.subclass('Squeak.Interpreter',
         this.breakOutOfInterpreter = this.breakOutOfInterpreter || true; // do not overwrite break string
     },
     nextByte: function() {
-        return this.methodBytes[this.pc++];
+        return this.method.bytes[this.pc++];
     },
     nono: function() {
         throw Error("Oh No!");
@@ -2426,19 +3218,41 @@ Object.subclass('Squeak.Interpreter',
     extendedStore: function( nextByte) {
         var lobits = nextByte & 63;
         switch (nextByte>>6) {
-            case 0: this.receiver.pointers[lobits] = this.top(); break;
-            case 1: this.homeContext.pointers[Squeak.Context_tempFrameStart+lobits] = this.top(); break;
-            case 2: this.nono(); break;
-            case 3: this.method.methodGetLiteral(lobits).pointers[Squeak.Assn_value] = this.top(); break;
+            case 0:
+                this.receiver.dirty = true;
+                this.receiver.pointers[lobits] = this.top();
+                break;
+            case 1:
+                this.homeContext.pointers[Squeak.Context_tempFrameStart+lobits] = this.top();
+                break;
+            case 2:
+                this.nono();
+                break;
+            case 3:
+                var assoc = this.method.methodGetLiteral(lobits);
+                assoc.dirty = true;
+                assoc.pointers[Squeak.Assn_value] = this.top();
+                break;
         }
     },
     extendedStorePop: function(nextByte) {
         var lobits = nextByte & 63;
         switch (nextByte>>6) {
-            case 0: this.receiver.pointers[lobits] = this.pop(); break;
-            case 1: this.homeContext.pointers[Squeak.Context_tempFrameStart+lobits] = this.pop(); break;
-            case 2: this.nono(); break;
-            case 3: this.method.methodGetLiteral(lobits).pointers[Squeak.Assn_value] = this.pop(); break;
+            case 0:
+                this.receiver.dirty = true;
+                this.receiver.pointers[lobits] = this.pop();
+                break;
+            case 1:
+                this.homeContext.pointers[Squeak.Context_tempFrameStart+lobits] = this.pop();
+                break;
+            case 2:
+                this.nono();
+                break;
+            case 3:
+                var assoc = this.method.methodGetLiteral(lobits);
+                assoc.dirty = true;
+                assoc.pointers[Squeak.Assn_value] = this.pop();
+                break;
         }
     },
     doubleExtendedDoAnything: function(byte2) {
@@ -2449,9 +3263,11 @@ Object.subclass('Squeak.Interpreter',
             case 2: this.push(this.receiver.pointers[byte3]); break;
             case 3: this.push(this.method.methodGetLiteral(byte3)); break;
             case 4: this.push(this.method.methodGetLiteral(byte3).pointers[Squeak.Assn_value]); break;
-            case 5: this.receiver.pointers[byte3] = this.top(); break;
-            case 6: this.receiver.pointers[byte3] = this.pop(); break;
-            case 7: this.method.methodGetLiteral(byte3).pointers[Squeak.Assn_value] = this.top(); break;
+            case 5: this.receiver.dirty = true; this.receiver.pointers[byte3] = this.top(); break;
+            case 6: this.receiver.dirty = true; this.receiver.pointers[byte3] = this.pop(); break;
+            case 7: var assoc = this.method.methodGetLiteral(byte3);
+                assoc.dirty = true;
+                assoc.pointers[Squeak.Assn_value] = this.top(); break;
         }
     },
     jumpIfTrue: function(delta) {
@@ -2472,6 +3288,22 @@ Object.subclass('Squeak.Interpreter',
         this.send(this.specialSelectors[lobits*2],
             this.specialSelectors[(lobits*2)+1],
             false);  //specialSelectors is  {...sel,nArgs,sel,nArgs,...)
+    },
+    callPrimBytecode: function() {
+        this.pc += 2; // skip over primitive number
+        if (this.primFailCode) {
+            if (this.method.bytes[this.pc] === 0x81) // extended store
+                this.stackTopPut(this.getErrorObjectFromPrimFailCode());
+            this.primFailCode = 0;
+        }
+    },
+    getErrorObjectFromPrimFailCode: function() {
+        var primErrTable = this.specialObjects[Squeak.splOb_PrimErrTableIndex];
+        if (primErrTable && primErrTable.pointers) {
+            var errorObject = primErrTable.pointers[this.primFailCode - 1];
+            if (errorObject) return errorObject;
+        }
+        return this.primFailCode;
     },
 },
 'closures', {
@@ -2620,12 +3452,11 @@ Object.subclass('Squeak.Interpreter',
         /////// Woosh //////
         this.activeContext = newContext; //We're off and running...
         //Following are more efficient than fetchContextRegisters() in newActiveContext()
+        this.activeContext.dirty = true;
         this.homeContext = newContext;
         this.method = newMethod;
-        this.methodBytes = newMethod.bytes;
         this.pc = newPC;
         this.sp = newSP;
-        this.storeContextRegisters(); // not really necessary, I claim
         this.receiver = newContext.pointers[Squeak.Context_receiver];
         if (this.receiver !== newRcvr)
             throw Error("receivers don't match");
@@ -2674,6 +3505,7 @@ Object.subclass('Squeak.Interpreter',
             thisContext = nextContext;
         }
         this.activeContext = thisContext;
+        this.activeContext.dirty = true;
         this.fetchContextRegisters(this.activeContext);
         this.push(returnValue);
         if (this.breakOnContextChanged) {
@@ -2841,6 +3673,7 @@ Object.subclass('Squeak.Interpreter',
         // Note: this is inlined in executeNewMethod() and doReturn()
         this.storeContextRegisters();
         this.activeContext = newContext; //We're off and running...
+        this.activeContext.dirty = true;
         this.fetchContextRegisters(newContext);
     },
     exportThisContext: function() {
@@ -2858,7 +3691,6 @@ Object.subclass('Squeak.Interpreter',
         }
         this.receiver = this.homeContext.pointers[Squeak.Context_receiver];
         this.method = meth;
-        this.methodBytes = meth.bytes;
         this.pc = this.decodeSqueakPC(ctxt.pointers[Squeak.Context_instructionPointer], meth);
         this.sp = this.decodeSqueakSP(ctxt.pointers[Squeak.Context_stackPointer]);
     },
@@ -2937,6 +3769,9 @@ Object.subclass('Squeak.Interpreter',
     },
     top: function() {
         return this.activeContext.pointers[this.sp];
+    },
+    stackTopPut: function(object) {
+        this.activeContext.pointers[this.sp] = object;
     },
     stackValue: function(depthIntoStack) {
         return this.activeContext.pointers[this.sp - depthIntoStack];
@@ -3061,9 +3896,6 @@ Object.subclass('Squeak.Interpreter',
     },
     isMethodContext: function(obj) {
         return obj.sqClass === this.specialObjects[Squeak.splOb_ClassMethodContext];
-    },
-    isMethod: function(obj, index) {
-        return  obj.sqClass === this.specialObjects[Squeak.splOb_ClassCompiledMethod];
     },
     instantiateClass: function(aClass, indexableSize) {
         return this.image.instantiateClass(aClass, indexableSize, this.nilObj);
@@ -3318,10 +4150,35 @@ Object.subclass('Squeak.Interpreter',
                 litIndex = this.method.bytes[this.pc + 2];
             } else
                 litIndex = this.method.bytes[this.pc + 1] & (byte === 134 ? 63 : 31);
-            var selectorObj = this.method.pointers[litIndex + 1];
-            if (selectorObj.bytesAsString() != 'blockCopy:') return true;
+            var selectorObj = this.method.methodGetLiteral(litIndex);
+            if (selectorObj.bytesAsString() !== 'blockCopy:') return true;
         }
         return false;
+    },
+    nextSendSelector: function() {
+        // if the next bytecode corresponds to a Smalltalk
+        // message send, answer the selector
+        var byte = this.method.bytes[this.pc];
+        if (byte < 131 || byte == 200) return null;
+        var selectorObj;
+        if (byte >= 0xD0 ) {
+            selectorObj = this.method.methodGetLiteral(byte & 0x0F);
+        } else if (byte >= 0xB0 ) {
+            selectorObj = this.specialSelectors[2 * (byte - 0xB0)];
+        } else if (byte <= 134) {
+            // long form support demands we check the selector
+            var litIndex;
+            if (byte === 132) {
+                if ((this.method.bytes[this.pc + 1] >> 5) > 1) return null;
+                litIndex = this.method.bytes[this.pc + 2];
+            } else
+                litIndex = this.method.bytes[this.pc + 1] & (byte === 134 ? 63 : 31);
+            selectorObj = this.method.methodGetLiteral(litIndex);
+        }
+        if (selectorObj) {
+            var selector = selectorObj.bytesAsString();
+            if (selector !== 'blockCopy:') return selector;
+        }
     },
 });
 
@@ -3338,15 +4195,21 @@ Object.subclass('Squeak.Primitives',
         this.initDisplay();
         this.initAtCache();
         this.initModules();
+        if (vm.image.isSpur) {
+            this.charFromInt = this.charFromIntSpur;
+            this.charToInt = this.charToIntSpur;
+            this.identityHash = this.identityHashSpur;
+        }
     },
     initModules: function() {
         this.loadedModules = {};
         this.builtinModules = {
-            JavaScriptPlugin:       this.findPluginFunctions("js_", "", true),
+            JavaScriptPlugin:       this.findPluginFunctions("js_"),
             FilePlugin:             this.findPluginFunctions("", "primitive(Disable)?(File|Directory)"),
             DropPlugin:             this.findPluginFunctions("", "primitiveDropRequest"),
             SoundPlugin:            this.findPluginFunctions("snd_"),
             JPEGReadWriter2Plugin:  this.findPluginFunctions("jpeg2_"),
+            SqueakFFIPrims:         this.findPluginFunctions("ffi_", "", true),
             SecurityPlugin: {
                 primitiveDisableImageWrite: this.fakePrimitive.bind(this, "SecurityPlugin.primitiveDisableImageWrite", 0),
             },
@@ -3472,50 +4335,50 @@ Object.subclass('Squeak.Primitives',
             case 35: return false; // primitiveBitOrLargeIntegers
             case 36: return false; // primitiveBitXorLargeIntegers
             case 37: return false; // primitiveBitShiftLargeIntegers
-            case 38: return this.popNandPushIfOK(2, this.objectAt(false,false,false)); // Float basicAt
-            case 39: return this.popNandPushIfOK(3, this.objectAtPut(false,false,false)); // Float basicAtPut
+            case 38: return this.popNandPushIfOK(argCount+1, this.objectAt(false,false,false)); // Float basicAt
+            case 39: return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,false,false)); // Float basicAtPut
             // Float Primitives (40-59)
-            case 40: return this.popNandPushFloatIfOK(1,this.stackInteger(0)); // primitiveAsFloat
-            case 41: return this.popNandPushFloatIfOK(2,this.stackFloat(1)+this.stackFloat(0));  // Float +
-            case 42: return this.popNandPushFloatIfOK(2,this.stackFloat(1)-this.stackFloat(0));  // Float -
+            case 40: return this.popNandPushFloatIfOK(argCount+1,this.stackInteger(0)); // primitiveAsFloat
+            case 41: return this.popNandPushFloatIfOK(argCount+1,this.stackFloat(1)+this.stackFloat(0));  // Float +
+            case 42: return this.popNandPushFloatIfOK(argCount+1,this.stackFloat(1)-this.stackFloat(0));  // Float -
             case 43: return this.pop2andPushBoolIfOK(this.stackFloat(1)<this.stackFloat(0));  // Float <
             case 44: return this.pop2andPushBoolIfOK(this.stackFloat(1)>this.stackFloat(0));  // Float >
             case 45: return this.pop2andPushBoolIfOK(this.stackFloat(1)<=this.stackFloat(0));  // Float <=
             case 46: return this.pop2andPushBoolIfOK(this.stackFloat(1)>=this.stackFloat(0));  // Float >=
             case 47: return this.pop2andPushBoolIfOK(this.stackFloat(1)===this.stackFloat(0));  // Float =
             case 48: return this.pop2andPushBoolIfOK(this.stackFloat(1)!==this.stackFloat(0));  // Float !=
-            case 49: return this.popNandPushFloatIfOK(2,this.stackFloat(1)*this.stackFloat(0));  // Float.mul
-            case 50: return this.popNandPushFloatIfOK(2,this.safeFDiv(this.stackFloat(1),this.stackFloat(0)));  // Float.div
-            case 51: return this.popNandPushIfOK(1,this.floatAsSmallInt(this.stackFloat(0)));  // Float.asInteger
+            case 49: return this.popNandPushFloatIfOK(argCount+1,this.stackFloat(1)*this.stackFloat(0));  // Float.mul
+            case 50: return this.popNandPushFloatIfOK(argCount+1,this.safeFDiv(this.stackFloat(1),this.stackFloat(0)));  // Float.div
+            case 51: return this.popNandPushIfOK(argCount+1,this.floatAsSmallInt(this.stackFloat(0)));  // Float.asInteger
             case 52: return false; // Float.fractionPart (modf)
-            case 53: return this.popNandPushIntIfOK(1, this.frexp_exponent(this.stackFloat(0)) - 1); // Float.exponent
+            case 53: return this.popNandPushIntIfOK(argCount+1, this.frexp_exponent(this.stackFloat(0)) - 1); // Float.exponent
             case 54: return this.popNandPushFloatIfOK(2, this.ldexp(this.stackFloat(1), this.stackFloat(0))); // Float.timesTwoPower
-            case 55: return this.popNandPushFloatIfOK(1, Math.sqrt(this.stackFloat(0))); // SquareRoot
-            case 56: return this.popNandPushFloatIfOK(1, Math.sin(this.stackFloat(0))); // Sine
-            case 57: return this.popNandPushFloatIfOK(1, Math.atan(this.stackFloat(0))); // Arctan
-            case 58: return this.popNandPushFloatIfOK(1, Math.log(this.stackFloat(0))); // LogN
-            case 59: return this.popNandPushFloatIfOK(1, Math.exp(this.stackFloat(0))); // Exp
+            case 55: return this.popNandPushFloatIfOK(argCount+1, Math.sqrt(this.stackFloat(0))); // SquareRoot
+            case 56: return this.popNandPushFloatIfOK(argCount+1, Math.sin(this.stackFloat(0))); // Sine
+            case 57: return this.popNandPushFloatIfOK(argCount+1, Math.atan(this.stackFloat(0))); // Arctan
+            case 58: return this.popNandPushFloatIfOK(argCount+1, Math.log(this.stackFloat(0))); // LogN
+            case 59: return this.popNandPushFloatIfOK(argCount+1, Math.exp(this.stackFloat(0))); // Exp
             // Subscript and Stream Primitives (60-67)
-            case 60: return this.popNandPushIfOK(2, this.objectAt(false,false,false)); // basicAt:
-            case 61: return this.popNandPushIfOK(3, this.objectAtPut(false,false,false)); // basicAt:put:
-            case 62: return this.popNandPushIfOK(1, this.objectSize(false)); // size
-            case 63: return this.popNandPushIfOK(2, this.objectAt(false,true,false)); // String.basicAt:
-            case 64: return this.popNandPushIfOK(3, this.objectAtPut(false,true,false)); // String.basicAt:put:
+            case 60: return this.popNandPushIfOK(argCount+1, this.objectAt(false,false,false)); // basicAt:
+            case 61: return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,false,false)); // basicAt:put:
+            case 62: return this.popNandPushIfOK(argCount+1, this.objectSize(false)); // size
+            case 63: return this.popNandPushIfOK(argCount+1, this.objectAt(false,true,false)); // String.basicAt:
+            case 64: return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,true,false)); // String.basicAt:put:
             case 65: return false; // primitiveNext
             case 66: return false; // primitiveNextPut
             case 67: return false; // primitiveAtEnd
             // StorageManagement Primitives (68-79)
-            case 68: return this.popNandPushIfOK(2, this.objectAt(false,false,true)); // Method.objectAt:
-            case 69: return this.popNandPushIfOK(3, this.objectAtPut(false,false,true)); // Method.objectAt:put:
-            case 70: return this.popNandPushIfOK(1, this.instantiateClass(this.stackNonInteger(0), 0)); // Class.new
-            case 71: return this.popNandPushIfOK(2, this.instantiateClass(this.stackNonInteger(1), this.stackPos32BitInt(0))); // Class.new:
+            case 68: return this.popNandPushIfOK(argCount+1, this.objectAt(false,false,true)); // Method.objectAt:
+            case 69: return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,false,true)); // Method.objectAt:put:
+            case 70: return this.popNandPushIfOK(argCount+1, this.instantiateClass(this.stackNonInteger(0), 0)); // Class.new
+            case 71: return this.popNandPushIfOK(argCount+1, this.instantiateClass(this.stackNonInteger(1), this.stackPos32BitInt(0))); // Class.new:
             case 72: return this.primitiveArrayBecome(argCount, false); // one way
-            case 73: return this.popNandPushIfOK(2, this.objectAt(false,false,true)); // instVarAt:
-            case 74: return this.popNandPushIfOK(3, this.objectAtPut(false,false,true)); // instVarAt:put:
-            case 75: return this.popNandPushIfOK(1, this.stackNonInteger(0).hash); // Object.identityHash
+            case 73: return this.popNandPushIfOK(argCount+1, this.objectAt(false,false,true)); // instVarAt:
+            case 74: return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,false,true)); // instVarAt:put:
+            case 75: return this.popNandPushIfOK(argCount+1, this.identityHash(this.stackNonInteger(0))); // Object.identityHash
             case 76: return this.primitiveStoreStackp(argCount);  // (Blue Book: primitiveAsObject)
-            case 77: return this.popNandPushIfOK(1, this.someInstanceOf(this.stackNonInteger(0))); // Class.someInstance
-            case 78: return this.popNandPushIfOK(1, this.nextInstanceAfter(this.stackNonInteger(0))); // Object.nextInstance
+            case 77: return this.popNandPushIfOK(argCount+1, this.someInstanceOf(this.stackNonInteger(0))); // Class.someInstance
+            case 78: return this.popNandPushIfOK(argCount+1, this.nextInstanceAfter(this.stackNonInteger(0))); // Object.nextInstance
             case 79: return this.primitiveNewMethod(argCount); // Compiledmethod.new
             // Control Primitives (80-89)
             case 80: return this.popNandPushIfOK(2,this.doBlockCopy()); // blockCopy:
@@ -3544,15 +4407,15 @@ Object.subclass('Squeak.Primitives',
             case 102: return this.primitiveBeDisplay(argCount); // DisplayScreen.beDisplay
             case 103: return false; // primitiveScanCharacters
             case 104: return false; // primitiveDrawLoop
-            case 105: return this.popNandPushIfOK(5, this.doStringReplace()); // string and array replace
+            case 105: return this.popNandPushIfOK(argCount+1, this.doStringReplace()); // string and array replace
             case 106: return this.primitiveScreenSize(argCount); // actualScreenSize
             case 107: return this.primitiveMouseButtons(argCount); // Sensor mouseButtons
             case 108: return this.primitiveKeyboardNext(argCount); // Sensor kbdNext
             case 109: return this.primitiveKeyboardPeek(argCount); // Sensor kbdPeek
             // System Primitives (110-119)
             case 110: return this.pop2andPushBoolIfOK(this.vm.stackValue(1) === this.vm.stackValue(0)); // ==
-            case 111: return this.popNandPushIfOK(1, this.vm.getClass(this.vm.top())); // Object.class
-            case 112: return this.popNandPushIfOK(1, this.vm.image.bytesLeft()); //primitiveBytesLeft
+            case 111: return this.popNandPushIfOK(argCount+1, this.vm.getClass(this.vm.top())); // Object.class
+            case 112: return this.popNandPushIfOK(argCount+1, this.vm.image.bytesLeft()); //primitiveBytesLeft
             case 113: return this.primitiveQuit(argCount);
             case 114: return this.primitiveExitToDebugger(argCount);
             case 115: return this.primitiveChangeClass(argCount);
@@ -3573,24 +4436,24 @@ Object.subclass('Squeak.Primitives',
             case 128: return this.primitiveArrayBecome(argCount, true); // both ways
             case 129: return this.popNandPushIfOK(1, this.vm.image.specialObjectsArray); //specialObjectsOop
             case 130: return this.primitiveFullGC(argCount);
-            case 131: return this.popNandPushIfOK(1, this.vm.image.partialGC()); // GCmost
+            case 131: return this.primitivePartialGC(argCount);
             case 132: return this.pop2andPushBoolIfOK(this.pointsTo(this.stackNonInteger(1), this.vm.top())); //Object.pointsTo
             case 133: return true; //TODO primitiveSetInterruptKey
             case 134: return this.popNandPushIfOK(2, this.registerSemaphore(Squeak.splOb_TheInterruptSemaphore));
             case 135: return this.popNandPushIfOK(1, this.millisecondClockValue());
             case 136: return this.primitiveSignalAtMilliseconds(argCount); //Delay signal:atMs:());
             case 137: return this.popNandPushIfOK(1, this.secondClock()); // seconds since Jan 1, 1901
-            case 138: return this.popNandPushIfOK(1, this.someObject()); // Object.someObject
-            case 139: return this.popNandPushIfOK(1, this.nextObject(this.vm.top())); // Object.nextObject
+            case 138: return this.popNandPushIfOK(argCount+1, this.someObject()); // Object.someObject
+            case 139: return this.popNandPushIfOK(argCount+1, this.nextObject(this.vm.top())); // Object.nextObject
             case 140: return this.primitiveBeep(argCount);
             case 141: return this.primitiveClipboardText(argCount);
-            case 142: return this.popNandPushIfOK(1, this.makeStString(this.filenameToSqueak(Squeak.vmPath)));
+            case 142: return this.popNandPushIfOK(argCount+1, this.makeStString(this.filenameToSqueak(Squeak.vmPath)));
             case 143: // short at and shortAtPut
             case 144: return this.primitiveShortAtAndPut(argCount);
             case 145: return this.primitiveConstantFill(argCount);
             case 146: return this.namedPrimitive('JoystickTabletPlugin', 'primitiveReadJoystick', argCount);
             case 147: return this.namedPrimitive('BitBltPlugin', 'primitiveWarpBits', argCount);
-            case 148: return this.popNandPushIfOK(1, this.vm.image.clone(this.vm.top())); //shallowCopy
+            case 148: return this.popNandPushIfOK(argCount+1, this.vm.image.clone(this.vm.top())); //shallowCopy
             case 149: return this.primitiveGetAttribute(argCount);
             // File Primitives (150-169)
             case 150: if (this.oldPrims) return this.primitiveFileAtEnd(argCount);
@@ -3603,11 +4466,15 @@ Object.subclass('Squeak.Primitives',
             case 157: if (this.oldPrims) return this.primitiveFileSize(argCount);
             case 158: if (this.oldPrims) return this.primitiveFileWrite(argCount);
             case 159: if (this.oldPrims) return this.primitiveFileRename(argCount);
-            case 160: if (this.oldPrims) return this.primitiveDirectoryCreate(argCount); // new: primitiveAdoptInstance
+                break;  // fail 150-159 if fell through
+            case 160: if (this.oldPrims) return this.primitiveDirectoryCreate(argCount);
+                else return this.primitiveAdoptInstance(argCount);
             case 161: if (this.oldPrims) return this.primitiveDirectoryDelimitor(argCount); // new: primitiveSetIdentityHash
+                break;  // fail
             case 162: if (this.oldPrims) return this.primitiveDirectoryLookup(argCount);
+                break;  // fail
             case 163: if (this.oldPrims) return this.primitiveDirectoryDelete(argCount);
-                break;  // fail 150-163 if fell through
+                break;  // fail
             // 164: unused
             case 165:
             case 166: return this.primitiveIntegerAtAndPut(argCount);
@@ -3617,21 +4484,35 @@ Object.subclass('Squeak.Primitives',
                 else return this.pop2andPushBoolIfOK(this.vm.stackValue(1) !== this.vm.stackValue(0)); //new: primitiveNotIdentical
             // Sound Primitives (170-199)
             case 170: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundStart', argCount);
+                else return this.primitiveAsCharacter(argCount);
             case 171: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundStartWithSemaphore', argCount);
+                else return this.popNandPushIfOK(argCount+1, this.stackNonInteger(0).hash); //primitiveImmediateAsInteger
             case 172: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundStop', argCount);
+                break;  // fail
             case 173: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundAvailableSpace', argCount);
+                else return this.popNandPushIfOK(argCount+1, this.objectAt(false,false,true)); // slotAt:
             case 174: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundPlaySamples', argCount);
+                else return this.popNandPushIfOK(argCount+1, this.objectAtPut(false,false,true)); // slotAt:put:
             case 175: if (this.oldPrims) return this.namedPrimitive('SoundPlugin', 'primitiveSoundPlaySilence', argCount);
+                else return this.popNandPushIfOK(argCount+1, this.behaviorHash(this.stackNonInteger(0)));
             case 176: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primWaveTableSoundmixSampleCountintostartingAtpan', argCount);
+                break;  // fail
             case 177: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primFMSoundmixSampleCountintostartingAtpan', argCount);
+                return this.popNandPushIfOK(argCount+1, this.allInstancesOf(this.stackNonInteger(0)));
             case 178: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primPluckedSoundmixSampleCountintostartingAtpan', argCount);
+                return false; // allObjectsDo fallback code is just as fast and uses less memory
             case 179: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primSampledSoundmixSampleCountintostartingAtpan', argCount);
+                break;  // fail
             case 180: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primitiveMixFMSound', argCount);
+                return false; // growMemoryByAtLeast
             case 181: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primitiveMixPluckedSound', argCount);
+                return this.primitiveSizeInBytesOfInstance(argCount);
             case 182: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'oldprimSampledSoundmixSampleCountintostartingAtleftVolrightVol', argCount);
+                return this.primitiveSizeInBytes(argCount);
             case 183: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primitiveApplyReverb', argCount);
+                break;  // fail
             case 184: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primitiveMixLoopedSampledSound', argCount);
-                break;  // fail 170-184 if fell through
+                break; // fail
             case 185: if (this.oldPrims) return this.namedPrimitive('SoundGenerationPlugin', 'primitiveMixSampledSound', argCount);
                 else return this.primitiveExitCriticalSection(argCount);
             case 186: if (this.oldPrims) break; // unused
@@ -3922,12 +4803,17 @@ Object.subclass('Squeak.Primitives',
             bytes[i] = (signed32>>>(8*i)) & 255;
         return lgIntObj;
     },
-    pos64BitIntFor: function(longlong) {
+    pos53BitIntFor: function(longlong) {
         // Return the quantity as an unsigned 64-bit integer
         if (longlong <= 0xFFFFFFFF) return this.pos32BitIntFor(longlong);
+        if (longlong > 0x1FFFFFFFFFFFFF) {
+            console.warn("Out of range: pos53BitIntFor(" + longlong + ")");
+            this.success = false;
+            return 0;
+        };
         var sz = longlong <= 0xFFFFFFFFFF ? 5 :
                  longlong <= 0xFFFFFFFFFFFF ? 6 :
-                 longlong <= 0xFFFFFFFFFFFFFF ? 7 : 8;
+                 7;
         var lgIntClass = this.vm.specialObjects[Squeak.splOb_ClassLargePositiveInteger],
             lgIntObj = this.vm.instantiateClass(lgIntClass, sz),
             bytes = lgIntObj.bytes;
@@ -3950,9 +4836,9 @@ Object.subclass('Squeak.Primitives',
             value = 0;
         for (var i = 0, f = 1; i < 4; i++, f *= 256)
             value += bytes[i] * f;
-        if (this.isA(stackVal, Squeak.splOb_ClassLargePositiveInteger))
+        if (this.isA(stackVal, Squeak.splOb_ClassLargePositiveInteger) && value <= 0x7FFFFFFF)
             return value;
-        if (this.isA(stackVal, Squeak.splOb_ClassLargeNegativeInteger))
+        if (this.isA(stackVal, Squeak.splOb_ClassLargeNegativeInteger) && -value >= -0x80000000)
             return -value;
         this.success = false;
         return 0;
@@ -3986,7 +4872,7 @@ Object.subclass('Squeak.Primitives',
                 value = 0;
             for (var i = 0, f = 1; i < n; i++, f *= 256)
                 value += bytes[i] * f;
-            if (value < 9007199254740992) {
+            if (value <= 0x1FFFFFFFFFFFFF) {
                 if (this.isA(stackVal, Squeak.splOb_ClassLargePositiveInteger))
                     return value;
                 if (this.isA(stackVal, Squeak.splOb_ClassLargeNegativeInteger))
@@ -4054,12 +4940,15 @@ Object.subclass('Squeak.Primitives',
         return exponent;
     },
     ldexp: function(mantissa, exponent) {
-        // construct a float from mantissa and exponent
-        return exponent > 1023 // avoid multiplying by infinity
-            ? mantissa * Math.pow(2, 1023) * Math.pow(2, exponent - 1023)
-            : exponent < -1074 // avoid multiplying by zero
-            ? mantissa * Math.pow(2, -1074) * Math.pow(2, exponent + 1074)
-            : mantissa * Math.pow(2, exponent);
+        // construct a float as mantissa * 2 ^ exponent
+        // avoid multiplying by Infinity and Zero and rounding errors
+        // by splitting the exponent (thanks to Nicolas Cellier)
+        // 3 multiplies needed for e.g. ldexp(5e-324, 1023+1074)
+        var steps = Math.min(3, Math.ceil(Math.abs(exponent) / 1023));
+        var result = mantissa;
+        for (var i = 0; i < steps; i++)
+            result *= Math.pow(2, Math.floor((exponent + i) / steps));
+        return result;
     },
     primitiveLessThanLargeIntegers: function() {
         return this.pop2andPushBoolIfOK(this.stackSigned53BitInt(1) < this.stackSigned53BitInt(0));
@@ -4130,14 +5019,7 @@ Object.subclass('Squeak.Primitives',
     },
     indexableSize: function(obj) {
         if (typeof obj === "number") return -1; // -1 means not indexable
-        var fmt = obj.format;
-        if (fmt<2) return -1; //not indexable
-        if (fmt===3 && this.vm.isContext(obj) && !this.allowAccessBeyondSP)
-            return obj.pointers[Squeak.Context_stackPointer]; // no access beyond top of stacks
-        if (fmt<6) return obj.pointersSize() - obj.instSize(); // pointers
-        if (fmt<8) return obj.wordsSize(); // words
-        if (fmt<12) return obj.bytesSize(); // bytes
-        return obj.bytesSize() + (4 * obj.pointersSize()); // methods
+        return obj.indexableSize(this);
     },
     isA: function(obj, knownClass) {
         return obj.sqClass === this.vm.specialObjects[knownClass];
@@ -4162,7 +5044,21 @@ Object.subclass('Squeak.Primitives',
     },
     charFromInt: function(ascii) {
         var charTable = this.vm.specialObjects[Squeak.splOb_CharacterTable];
-        return charTable.pointers[ascii];
+        var char = charTable.pointers[ascii];
+        if (char) return char;
+        var charClass = this.vm.specialObjects[Squeak.splOb_ClassCharacter];
+        char = this.vm.instantiateClass(charClass, 0);
+        char.pointers[0] = ascii;
+        return char;
+    },
+    charFromIntSpur: function(unicode) {
+        return this.vm.image.getCharacter(unicode);
+    },
+    charToInt: function(obj) {
+        return obj.pointers[0];
+    },
+    charToIntSpur: function(obj) {
+        return obj.hash;
     },
     makeFloat: function(value) {
         var floatClass = this.vm.specialObjects[Squeak.splOb_ClassFloat];
@@ -4212,8 +5108,9 @@ Object.subclass('Squeak.Primitives',
             stObj.jsObject = obj;
             return stObj;
         }
-        if (typeof obj === "string" || obj.constructor === Uint8Array) return this.makeStString(obj);
-        if (obj.constructor === Array) return this.makeStArray(obj);
+  // A direct test of the buffer's constructor doesn't work on Safari 10.0.
+        if (typeof obj === "string" || obj.constructor.name === "Uint8Array") return this.makeStString(obj);
+        if (obj.constructor.name === "Array") return this.makeStArray(obj);
         throw Error("cannot make smalltalk object");
     },
     pointsTo: function(rcvr, arg) {
@@ -4221,8 +5118,9 @@ Object.subclass('Squeak.Primitives',
         return rcvr.pointers.indexOf(arg) >= 0;
     },
     asUint8Array: function(buffer) {
-        if (buffer.constructor === Uint8Array) return buffer;
-        if (buffer.constructor === ArrayBuffer) return new Uint8Array(buffer);
+  // A direct test of the buffer's constructor doesn't work on Safari 10.0.
+        if (buffer.constructor.name === "Uint8Array") return buffer;
+        if (buffer.constructor.name === "ArrayBuffer") return new Uint8Array(buffer);
         if (typeof buffer === "string") {
             var array = new Uint8Array(buffer.length);
             for (var i = 0; i < buffer.length; i++)
@@ -4269,14 +5167,15 @@ Object.subclass('Squeak.Primitives',
         if (index < 1 || index > info.size) {this.success = false; return array;}
         if (includeInstVars)  //pointers...   instVarAt and objectAt
             return array.pointers[index-1];
-        if (array.format<6)   //pointers...   normal at:
+        if (array.isPointers())   //pointers...   normal at:
             return array.pointers[index-1+info.ivarOffset];
-        if (array.format<8) // words...
-            return this.pos32BitIntFor(array.words[index-1]);
-        if (array.format<12) // bytes...
+        if (array.isWords()) // words...
+            if (info.convertChars) return this.charFromInt(array.words[index-1] & 0x3FFFFFFF);
+            else return this.pos32BitIntFor(array.words[index-1]);
+        if (array.isBytes()) // bytes...
             if (info.convertChars) return this.charFromInt(array.bytes[index-1] & 0xFF);
             else return array.bytes[index-1] & 0xFF;
-        // methods (format>=12) must simulate Squeak's method indexing
+        // methods must simulate Squeak's method indexing
         var offset = array.pointersSize() * 4;
         if (index-1-offset < 0) {this.success = false; return array;} //reading lits as bytes
         return array.bytes[index-1-offset] & 0xFF;
@@ -4304,13 +5203,25 @@ Object.subclass('Squeak.Primitives',
         }
         if (index<1 || index>info.size) {this.success = false; return array;}
         var objToPut = this.vm.stackValue(0);
-        if (includeInstVars)  // pointers...   instVarAtPut and objectAtPut
+        if (includeInstVars)  {// pointers...   instVarAtPut and objectAtPut
+            array.dirty = true;
             return array.pointers[index-1] = objToPut; //eg, objectAt:
-        if (array.format<6)  // pointers...   normal atPut
+        }
+        if (array.isPointers())  {// pointers...   normal atPut
+            array.dirty = true;
             return array.pointers[index-1+info.ivarOffset] = objToPut;
+        }
         var intToPut;
-        if (array.format<8) {  // words...
-            intToPut = this.stackPos32BitInt(0);
+        if (array.isWords()) {  // words...
+            if (convertChars) {
+                // put a character...
+                if (objToPut.sqClass !== this.vm.specialObjects[Squeak.splOb_ClassCharacter])
+                    {this.success = false; return objToPut;}
+                intToPut = this.charToInt(objToPut);
+                if (typeof intToPut !== "number") {this.success = false; return objToPut;}
+            } else {
+                intToPut = this.stackPos32BitInt(0);
+            }
             if (this.success) array.words[index-1] = intToPut;
             return objToPut;
         }
@@ -4319,16 +5230,16 @@ Object.subclass('Squeak.Primitives',
             // put a character...
             if (objToPut.sqClass !== this.vm.specialObjects[Squeak.splOb_ClassCharacter])
                 {this.success = false; return objToPut;}
-            intToPut = objToPut.pointers[0];
+            intToPut = this.charToInt(objToPut);
             if (typeof intToPut !== "number") {this.success = false; return objToPut;}
         } else { // put a byte...
             if (typeof objToPut !== "number") {this.success = false; return objToPut;}
             intToPut = objToPut;
         }
         if (intToPut<0 || intToPut>255) {this.success = false; return objToPut;}
-        if (array.format<8)  // bytes...
+        if (array.isBytes())  // bytes...
             return array.bytes[index-1] = intToPut;
-        // methods (format>=12) must simulate Squeak's method indexing
+        // methods must simulate Squeak's method indexing
         var offset = array.pointersSize() * 4;
         if (index-1-offset < 0) {this.success = false; return array;} //writing lits as bytes
         array.bytes[index-1-offset] = intToPut;
@@ -4363,13 +5274,6 @@ Object.subclass('Squeak.Primitives',
             this.atPutCache.push({});
         }
     },
-    clearAtCache: function() { //clear at-cache pointers (prior to GC)
-        this.nonCachedInfo.array = null;
-        for (var i= 0; i < this.atCacheSize; i++) {
-            this.atCache[i].array = null;
-            this.atPutCache[i].array = null;
-        }
-    },
     makeAtCacheInfo: function(atOrPutCache, atOrPutSelector, array, convertChars, includeInstVars) {
         //Make up an info object and store it in the atCache or the atPutCache.
         //If it's not cacheable (not a non-super send of at: or at:put:)
@@ -4380,16 +5284,16 @@ Object.subclass('Squeak.Primitives',
         var cacheable =
             (this.vm.verifyAtSelector === atOrPutSelector)         //is at or atPut
             && (this.vm.verifyAtClass === array.sqClass)           //not a super send
-            && !(array.format === 3 && this.vm.isContext(array));  //not a context (size can change)
+            && !this.vm.isContext(array);                          //not a context (size can change)
         info = cacheable ? atOrPutCache[array.hash & this.atCacheMask] : this.nonCachedInfo;
         info.array = array;
         info.convertChars = convertChars;
         if (includeInstVars) {
-            info.size = array.instSize() + Math.max(0, this.indexableSize(array));
+            info.size = array.instSize() + Math.max(0, array.indexableSize(this));
             info.ivarOffset = 0;
         } else {
-            info.size = this.indexableSize(array);
-            info.ivarOffset = (array.format < 6) ? array.instSize() : 0;
+            info.size = array.indexableSize(this);
+            info.ivarOffset = array.isPointers() ? array.instSize() : 0;
         }
         return info;
     },
@@ -4401,6 +5305,7 @@ Object.subclass('Squeak.Primitives',
             // but we need to stop runaway allocations
             console.warn("squeak: out of memory");
             this.success = false;
+            this.vm.primFailCode = Squeak.PrimErrNoMemory;
             return null;
         } else {
             return this.vm.instantiateClass(clsObj, indexableSize);
@@ -4424,8 +5329,54 @@ Object.subclass('Squeak.Primitives',
         this.success = false;
         return 0;
     },
+    allInstancesOf: function(clsObj) {
+        var instances = this.vm.image.allInstancesOf(clsObj);
+        var array = this.vm.instantiateClass(this.vm.specialObjects[Squeak.splOb_ClassArray], instances.length);
+        array.pointers = instances;
+        return array;
+    },
+    identityHash: function(obj) {
+        return obj.hash;
+    },
+    identityHashSpur: function(obj) {
+        var hash = obj.hash;
+        if (hash > 0) return hash;
+        return obj.hash = this.newObjectHash();
+    },
+    behaviorHash: function(obj) {
+        var hash = obj.hash;
+        if (hash > 0) return hash;
+        return this.vm.image.enterIntoClassTable(obj);
+    },
+    newObjectHash: function(obj) {
+        return Math.floor(Math.random() * 0x3FFFFE) + 1;
+    },
+    primitiveSizeInBytesOfInstance: function(argCount) {
+        if (argCount > 1) return false;
+        var classObj = this.stackNonInteger(argCount),
+            nElements = argCount ? this.stackInteger(0) : 0,
+            bytes = classObj.classByteSizeOfInstance(nElements);
+        return this.popNandPushIfOK(argCount + 1, this.makeLargeIfNeeded(bytes));
+    },
+    primitiveSizeInBytes: function(argCount) {
+        var object = this.stackNonInteger(0),
+            bytes = object.totalBytes();
+        return this.popNandPushIfOK(argCount + 1, this.makeLargeIfNeeded(bytes));
+    },
+    primitiveAsCharacter: function(argCount) {
+        var unicode = this.stackInteger(0);
+        if (unicode < 0 || unicode > 0x3FFFFFFF) return false;
+        var char = this.charFromInt(unicode);
+        if (!char) return false;
+        return this.popNandPushIfOK(argCount + 1, char);
+    },
     primitiveFullGC: function(argCount) {
         this.vm.image.fullGC("primitive");
+        var bytes = this.vm.image.bytesLeft();
+        return this.popNandPushIfOK(1, this.makeLargeIfNeeded(bytes));
+    },
+    primitivePartialGC: function(argCount) {
+        this.vm.image.partialGC("primitive");
         var bytes = this.vm.image.bytesLeft();
         return this.popNandPushIfOK(1, this.makeLargeIfNeeded(bytes));
     },
@@ -4453,16 +5404,49 @@ Object.subclass('Squeak.Primitives',
         return true;
     },
     primitiveChangeClass: function(argCount) {
-        if (argCount !== 1) return false;
+        if (argCount > 2) return false;
         var rcvr = this.stackNonInteger(1),
             arg = this.stackNonInteger(0);
         if (!this.success) return false;
-        if (rcvr.format !== arg.format ||
-            rcvr.sqClass.isCompact !== arg.sqClass.isCompact ||
-            rcvr.sqClass.classInstSize() !== arg.sqClass.classInstSize())
+        if (rcvr.sqClass.isCompact !== arg.sqClass.isCompact) return false;
+        if (rcvr.isPointers()) {
+            if (!arg.isPointers()) return false;
+            if (rcvr.sqClass.classInstSize() !== arg.sqClass.classInstSize())
                 return false;
+        } else {
+            if (arg.isPointers()) return false;
+            var hasBytes = rcvr.isBytes(),
+                needBytes = arg.isBytes();
+            if (hasBytes && !needBytes) {
+                if (rcvr.bytes) {
+                    if (rcvr.bytes.length & 3) return false;
+                    rcvr.words = new Uint32Array(rcvr.bytes.buffer);
+                    delete rcvr.bytes;
+                }
+            } else if (!hasBytes && needBytes) {
+                if (rcvr.words) {
+                    rcvr.bytes = new Uint8Array(rcvr.words.buffer);
+                    delete rcvr.words;
+                }
+            }
+        }
+        rcvr._format = arg._format;
         rcvr.sqClass = arg.sqClass;
-        return this.popNIfOK(1);
+        return this.popNIfOK(argCount);
+    },
+    primitiveAdoptInstance: function(argCount) {
+        if (argCount > 2) return false;
+        var cls = this.stackNonInteger(1),
+            obj = this.stackNonInteger(0);
+        if (!this.success) return false;
+        // we don't handle differing formats here, image will
+        // try the more general primitiveChangeClass
+        if (cls.classInstFormat() !== obj.sqClass.classInstFormat() ||
+            cls.isCompact !== obj.sqClass.isCompact ||
+            cls.classInstSize() !== obj.sqClass.classInstSize())
+                return false;
+        obj.sqClass = cls;
+        return this.popNIfOK(argCount);
     },
     primitiveDoPrimitiveWithArgs: function(argCount) {
         var argumentArray = this.stackNonInteger(0),
@@ -4539,9 +5523,9 @@ Object.subclass('Squeak.Primitives',
         var header = this.stackInteger(0);
         var bytecodeCount = this.stackInteger(1);
         if (!this.success) return 0;
-        var litCount = (header>>9) & 0xFF;
         var method = this.vm.instantiateClass(this.vm.stackValue(2), bytecodeCount);
         method.pointers = [header];
+        var litCount = method.methodNumLits();
         for (var i = 0; i < litCount; i++)
             method.pointers.push(this.vm.nilObj);
         this.vm.popNandPush(1+argCount, method);
@@ -4556,7 +5540,7 @@ Object.subclass('Squeak.Primitives',
             argsArray = this.stackNonInteger(1),
             receiver = this.vm.stackValue(2);
         // Allow for up to two extra arguments (e.g. for mirror primitives).
-        if (!this.success || !this.vm.isMethod(methodObj) || argCount > 4) return false;
+        if (!this.success || !methodObj.isMethod() || argCount > 4) return false;
         var numArgs = methodObj.methodNumArgs();
         if (numArgs !== argsArray.pointersSize()) return false;
         // drop all args, push receiver, and new arguments
@@ -4581,13 +5565,8 @@ Object.subclass('Squeak.Primitives',
         var src = this.stackNonInteger(1);
         var srcPos = this.stackInteger(0) - 1;
         if (!this.success) return dst; //some integer not right
-        var srcFmt = src.format;
-        var dstFmt = dst.format;
-        if (dstFmt < 8)
-            if (dstFmt != srcFmt) {this.success = false; return dst;} //incompatible formats
-        else
-            if ((dstFmt&0xC) != (srcFmt&0xC)) {this.success = false; return dst;} //incompatible formats
-        if (srcFmt<4) {//pointer type objects
+        if (!src.sameFormatAs(dst)) {this.success = false; return dst;} //incompatible formats
+        if (src.isPointers()) {//pointer type objects
             var totalLength = src.pointersSize();
             var srcInstSize = src.instSize();
             srcPos += srcInstSize;
@@ -4601,14 +5580,20 @@ Object.subclass('Squeak.Primitives',
             for (var i = 0; i < count; i++)
                 dst.pointers[dstPos + i] = src.pointers[srcPos + i];
             return dst;
-        } else if (srcFmt < 8) { //words type objects
+        } else if (src.isWords()) { //words type objects
             var totalLength = src.wordsSize();
             if ((srcPos < 0) || (srcPos + count) > totalLength)
                 {this.success = false; return dst;} //would go out of bounds
             totalLength = dst.wordsSize();
             if ((dstPos < 0) || (dstPos + count) > totalLength)
                 {this.success = false; return dst;} //would go out of bounds
-            for (var i = 0; i < count; i++)
+            if (src.isFloat && dst.isFloat)
+                dst.float = src.float;
+            else if (src.isFloat)
+                dst.wordsAsFloat64Array()[dstPos] = src.float;
+            else if (dst.isFloat)
+                dst.float = src.wordsAsFloat64Array()[srcPos];
+            else for (var i = 0; i < count; i++)
                 dst.words[dstPos + i] = src.words[srcPos + i];
             return dst;
         } else { //bytes type objects
@@ -4632,7 +5617,8 @@ Object.subclass('Squeak.Primitives',
             rcvr.sqClass !== arg.sqClass ||
             length !== arg.pointersSize()) return false;
         for (var i = 0; i < length; i++)
-            arg.pointers[i] = rcvr.pointers[i];
+            rcvr.pointers[i] = arg.pointers[i];
+        rcvr.dirty = arg.dirty;
         this.vm.pop(argCount);
         return true;
     },
@@ -4756,18 +5742,29 @@ Object.subclass('Squeak.Primitives',
         return true;
     },
     primitiveSuspend: function() {
-        var activeProc = this.getScheduler().pointers[Squeak.ProcSched_activeProcess];
-        if (this.vm.top() !== activeProc) return false;
-        this.vm.popNandPush(1, this.vm.nilObj);
-        this.transferTo(this.pickTopProcess());
+        var process = this.vm.top();
+        if (process === this.activeProcess()) {
+            this.vm.popNandPush(1, this.vm.nilObj);
+            this.transferTo(this.wakeHighestPriority());
+        } else {
+            var oldList = process.pointers[Squeak.Proc_myList];
+            if (oldList.isNil) return false;
+            this.removeProcessFromList(process, oldList);
+            if (!this.success) return false;
+            process.pointers[Squeak.Proc_myList] = this.vm.nilObj;
+            this.vm.popNandPush(1, oldList);
+        }
         return true;
     },
     getScheduler: function() {
         var assn = this.vm.specialObjects[Squeak.splOb_SchedulerAssociation];
         return assn.pointers[Squeak.Assn_value];
     },
+    activeProcess: function() {
+        return this.getScheduler().pointers[Squeak.ProcSched_activeProcess];
+    },
     resume: function(newProc) {
-        var activeProc = this.getScheduler().pointers[Squeak.ProcSched_activeProcess];
+        var activeProc = this.activeProcess();
         var activePriority = activeProc.pointers[Squeak.Proc_priority];
         var newPriority = newProc.pointers[Squeak.Proc_priority];
         if (newPriority > activePriority) {
@@ -4789,7 +5786,9 @@ Object.subclass('Squeak.Primitives',
         var sched = this.getScheduler();
         var oldProc = sched.pointers[Squeak.ProcSched_activeProcess];
         sched.pointers[Squeak.ProcSched_activeProcess] = newProc;
+        sched.dirty = true;
         oldProc.pointers[Squeak.Proc_suspendedContext] = this.vm.activeContext;
+        oldProc.dirty = true;
         this.vm.newActiveContext(newProc.pointers[Squeak.Proc_suspendedContext]);
         newProc.pointers[Squeak.Proc_suspendedContext] = this.vm.nilObj;
         this.vm.reclaimableContextCount = 0;
@@ -4798,7 +5797,7 @@ Object.subclass('Squeak.Primitives',
             this.vm.breakNow();
         }
     },
-    pickTopProcess: function() { // aka wakeHighestPriority
+    wakeHighestPriority: function() {
         //Return the highest priority process that is ready to run.
         //Note: It is a fatal VM error if there is no runnable process.
         var schedLists = this.getScheduler().pointers[Squeak.ProcSched_processLists];
@@ -4813,14 +5812,17 @@ Object.subclass('Squeak.Primitives',
     linkProcessToList: function(proc, aList) {
         // Add the given process to the given linked list and set the backpointer
         // of process to its new list.
-        if (this.isEmptyList(aList))
+        if (this.isEmptyList(aList)) {
             aList.pointers[Squeak.LinkedList_firstLink] = proc;
-        else {
+        } else {
             var lastLink = aList.pointers[Squeak.LinkedList_lastLink];
             lastLink.pointers[Squeak.Link_nextLink] = proc;
+            lastLink.dirty = true;
         }
         aList.pointers[Squeak.LinkedList_lastLink] = proc;
+        aList.dirty = true;
         proc.pointers[Squeak.Proc_myList] = aList;
+        proc.dirty = true;
     },
     isEmptyList: function(aLinkedList) {
         return aLinkedList.pointers[Squeak.LinkedList_firstLink].isNil;
@@ -4835,9 +5837,35 @@ Object.subclass('Squeak.Primitives',
         } else {
             var next = first.pointers[Squeak.Link_nextLink];
             aList.pointers[Squeak.LinkedList_firstLink] = next;
+            aList.dirty = true;
         }
         first.pointers[Squeak.Link_nextLink] = this.vm.nilObj;
         return first;
+    },
+    removeProcessFromList: function(process, list) {
+        var first = list.pointers[Squeak.LinkedList_firstLink];
+        var last = list.pointers[Squeak.LinkedList_lastLink];
+        if (process === first) {
+            var next = process.pointers[Squeak.Link_nextLink];
+            list.pointers[Squeak.LinkedList_firstLink] = next;
+            if (process === last) {
+                list.pointers[Squeak.LinkedList_lastLink] = this.vm.nilObj;
+            }
+        } else {
+            var temp = first;
+            while (true) {
+                if (temp.isNil) return this.success = false;
+                next = temp.pointers[Squeak.Link_nextLink];
+                if (next === process) break;
+                temp = next;
+            }
+            next = process.pointers[Squeak.Link_nextLink];
+            temp.pointers[Squeak.Link_nextLink] = next;
+            if (process === last) {
+                list.pointers[Squeak.LinkedList_lastLink] = temp;
+            }
+        }
+        process.pointers[Squeak.Link_nextLink] = this.vm.nilObj;
     },
     registerSemaphore: function(specialObjIndex) {
         var sema = this.vm.top();
@@ -4854,9 +5882,8 @@ Object.subclass('Squeak.Primitives',
         if (excessSignals > 0)
             sema.pointers[Squeak.Semaphore_excessSignals] = excessSignals - 1;
         else {
-            var activeProc = this.getScheduler().pointers[Squeak.ProcSched_activeProcess];
-            this.linkProcessToList(activeProc, sema);
-            this.transferTo(this.pickTopProcess());
+            this.linkProcessToList(this.activeProcess(), sema);
+            this.transferTo(this.wakeHighestPriority());
         }
         return true;
     },
@@ -4915,24 +5942,62 @@ Object.subclass('Squeak.Primitives',
         }
     },
     primitiveEnterCriticalSection: function(argCount) {
-      throw new Error("not implemented yet: primitiveEnterCriticalSection");
-    },
+        if (argCount > 1) return false;
+        var mutex = this.vm.stackValue(argCount);
+        var activeProc = argCount ? this.vm.top() : this.activeProcess();
+        var owningProcess = mutex.pointers[Squeak.Mutex_owner];
+        if (owningProcess.isNil) {
+            mutex.pointers[Squeak.Mutex_owner] = activeProc;
+            mutex.dirty = true;
+            this.popNandPushIfOK(argCount + 1, this.vm.falseObj);
+        } else if (owningProcess === activeProc) {
+            this.popNandPushIfOK(argCount + 1, this.vm.trueObj);
+        } else {
+            this.popNandPushIfOK(argCount + 1, this.vm.falseObj);
+            this.linkProcessToList(activeProc, mutex);
+            this.transferTo(this.wakeHighestPriority());
+        }
+        return true;
+  },
     primitiveExitCriticalSection: function(argCount) {
-      throw new Error("not implemented yet: primitiveExitCriticalSection");
+        var criticalSection = this.vm.top();
+        if (this.isEmptyList(criticalSection)) {
+            criticalSection.pointers[Squeak.Mutex_owner] = this.vm.nilObj;
+        } else {
+            var owningProcess = this.removeFirstLinkOfList(criticalSection);
+            criticalSection.pointers[Squeak.Mutex_owner] = owningProcess;
+            criticalSection.dirty = true;
+            this.resume(owningProcess);
+        }
+        return true;
     },
     primitiveTestAndSetOwnershipOfCriticalSection: function(argCount) {
-      throw new Error("not implemented yet: primitiveTestAndSetOwnershipOfCriticalSection");
-    },
+        if (argCount > 1) return false;
+        var mutex = this.vm.stackValue(argCount);
+        var activeProc = argCount ? this.vm.top() : this.activeProcess();
+        var owningProcess = mutex.pointers[Squeak.Mutex_owner];
+        if (owningProcess.isNil) {
+            mutex.pointers[Squeak.Mutex_owner] = activeProc;
+            mutex.dirty = true;
+            this.popNandPushIfOK(argCount + 1, this.vm.falseObj);
+        } else if (owningProcess === activeProc) {
+            this.popNandPushIfOK(argCount + 1, this.vm.trueObj);
+        } else {
+            this.popNandPushIfOK(argCount + 1, this.vm.nilObj);
+        }
+        return true;
+  },
 },
 'vm functions', {
     primitiveGetAttribute: function(argCount) {
         var attr = this.stackInteger(0);
         if (!this.success) return false;
-        var value;
+        var argv = this.display.argv,
+            value = null;
         switch (attr) {
-            case 0: value = this.filenameToSqueak(Squeak.vmPath + Squeak.vmFile); break;
-            case 1: value = this.display.documentName || null; break; // 1.x images want document here
-            case 2: value = this.display.documentName || null; break; // later images want document here
+            case 0: value = (argv && argv[0]) || this.filenameToSqueak(Squeak.vmPath + Squeak.vmFile); break;
+            case 1: value = (argv && argv[1]) || this.display.documentName; break; // 1.x images want document here
+            case 2: value = (argv && argv[2]) || this.display.documentName; break; // later images want document here
             case 1001: value = Squeak.platformName; break;
             case 1002: value = Squeak.osVersion; break;
             case 1003: value = Squeak.platformSubtype; break;
@@ -4941,8 +6006,13 @@ Object.subclass('Squeak.Primitives',
             case 1006: value = Squeak.vmBuild; break;
             case 1007: value = Squeak.vmVersion; break; // Interpreter class
             // case 1008: Cogit class
-            case 1009: value = Squeak.vmVersion; break; // Platform source version
-            default: return false;
+            case 1009: value = Squeak.vmVersion + ' Date: ' + Squeak.vmDate; break; // Platform source version
+            default:
+                if (argv && argv.length > attr) {
+                    value = argv[attr];
+                } else {
+                    return false;
+                }
         }
         this.vm.popNandPush(argCount+1, this.makeStObject(value));
         return true;
@@ -4957,7 +6027,7 @@ Object.subclass('Squeak.Primitives',
         0 args: return an Array of VM parameter values;
         1 arg:  return the indicated VM parameter;
         2 args: set the VM indicated parameter. */
-        var paramsArraySize = 41;
+        var paramsArraySize = this.vm.image.isSpur ? 54 : 44;
         switch (argCount) {
             case 0:
                 var arrayObj = this.vm.instantiateClass(this.vm.specialObjects[Squeak.splOb_ClassArray], paramsArraySize);
@@ -4966,8 +6036,10 @@ Object.subclass('Squeak.Primitives',
                 return this.popNandPushIfOK(1, arrayObj);
             case 1:
                 var parm = this.stackInteger(0);
+                if (parm < 1 || parm > paramsArraySize) return false;
                 return this.popNandPushIfOK(2, this.makeStObject(this.vmParameterAt(parm)));
             case 2:
+                // ignore writes
                 return this.popNandPushIfOK(3, 0);
         };
         return false;
@@ -4982,13 +6054,16 @@ Object.subclass('Squeak.Primitives',
             // 6    survivor count tenuring threshold (read-write)
             case 7: return this.vm.image.gcCount;           // full GCs since startup (read-only)
             case 8: return this.vm.image.gcMilliseconds;    // total milliseconds in full GCs since startup (read-only)
-            case 9: return 1;   /* image expects > 0 */     // incremental GCs since startup (read-only)
-            case 10: return 0;                              // total milliseconds in incremental GCs since startup (read-only)
+            case 9: return this.vm.image.pgcCount;          // incremental GCs since startup (read-only)
+            case 10: return this.vm.image.pgcMilliseconds;  // total milliseconds in incremental GCs since startup (read-only)
             case 11: return this.vm.image.gcTenured;        // tenures of surving objects since startup (read-only)
             // 12-20 specific to the translating VM
+            case 15:
+            case 16:
+            case 17: return 0;                              // method cache stats
             // 21   root table size (read-only)
             case 22: return 0;                              // root table overflows since startup (read-only)
-            // 23   bytes of extra memory to reserve for VM buffers, plugins, etc.
+            case 23: return this.vm.image.extraVMMemory;    // bytes of extra memory to reserve for VM buffers, plugins, etc.
             // 24   memory threshold above which to shrink object memory (read-write)
             // 25   memory headroom when growing object memory (read-write)
             // 26   interruptChecksEveryNms - force an ioProcessEvents every N milliseconds (read-write)
@@ -5007,7 +6082,46 @@ Object.subclass('Squeak.Primitives',
             // 39   Number of finalization signals for Weak Objects pending when current IGC/FGC completed (read-only)
             case 40: return 4; // BytesPerWord for this image
             case 41: return this.vm.image.formatVersion();
-        }
+        //42  number of stack pages in use (Cog Stack VM only, otherwise nil)
+        //43  desired number of stack pages (stored in image file header, max 65535; Cog VMs only, otherwise nil)
+        case 44: return 0; // size of eden, in bytes
+            // 45 desired size of eden, in bytes (stored in image file header; Cog VMs only, otherwise nil)
+            // 46 size of machine code zone, in bytes (stored in image file header; Cog JIT VM only, otherwise nil)
+            // 47 desired size of machine code zone, in bytes (applies at startup only, stored in image file header; Cog JIT VM only)
+            case 48: return 0;
+            // 48 various properties of the Cog VM as an integer encoding an array of bit flags.
+            //      Bit 0: tells the VM that the image's Process class has threadId as its 5th inst var (after nextLink, suspendedContext, priority & myList)
+            //      Bit 1: on Cog JIT VMs asks the VM to set the flag bit in interpreted methods
+            //      Bit 2: if set, preempting a process puts it to the head of its run queue, not the back,
+            //  i.e. preempting a process by a higher priority one will not cause the preempted process to yield
+            //    to others at the same priority.
+            //      Bit 3: in a muilt-threaded VM, if set, the Window system will only be accessed from the first VM thread
+            //      Bit 4: in a Spur vm, if set, causes weaklings and ephemerons to be queued individually for finalization
+            // 49 the size of the external semaphore table (read-write; Cog VMs only)
+            // 50-51 reserved for VM parameters that persist in the image (such as eden above)
+            // 52 root (remembered) table maximum size (read-only)
+            // 53 the number of oldSpace segments (Spur only, otherwise nil)
+            case 54: return this.vm.image.bytesLeft();  // total size of free old space (Spur only, otherwise nil)
+            // 55 ratio of growth and image size at or above which a GC will be performed post scavenge (Spur only, otherwise nil)
+            // 56 number of process switches since startup (read-only)
+            // 57 number of ioProcessEvents calls since startup (read-only)
+            // 58 number of forceInterruptCheck (Cog VMs) or quickCheckInterruptCalls (non-Cog VMs) calls since startup (read-only)
+            // 59 number of check event calls since startup (read-only)
+            // 60 number of stack page overflows since startup (read-only; Cog VMs only)
+            // 61 number of stack page divorces since startup (read-only; Cog VMs only)
+            // 62 number of machine code zone compactions since startup (read-only; Cog VMs only)
+            // 63 milliseconds taken by machine code zone compactions since startup (read-only; Cog VMs only)
+            // 64 current number of machine code methods (read-only; Cog VMs only)
+            // 65 In newer Cog VMs a set of flags describing VM features,
+            //      if non-zero bit 0 implies multiple bytecode set support;
+            //      if non-zero bit 0 implies read-only object support
+            //      (read-only; Cog VMs only; nil in older Cog VMs, a boolean answering multiple bytecode support in not so old Cog VMs)
+            // 66 the byte size of a stack page in the stack zone  (read-only; Cog VMs only)
+            // 67 the maximum allowed size of old space in bytes, 0 implies no internal limit (Spur VMs only).
+            // 68 - 69 reserved for more Cog-related info
+            // 70 the value of VM_PROXY_MAJOR (the interpreterProxy major version number)
+            // 71 the value of VM_PROXY_MINOR (the interpreterProxy minor version number)"
+    }
         return null;
     },
     primitiveImageName: function(argCount) {
@@ -5020,8 +6134,7 @@ Object.subclass('Squeak.Primitives',
     primitiveSnapshot: function(argCount) {
         this.vm.popNandPush(1, this.vm.trueObj);        // put true on stack for saved snapshot
         this.vm.storeContextRegisters();                // store current state for snapshot
-        var proc = this.getScheduler().pointers[Squeak.ProcSched_activeProcess];
-        proc.pointers[Squeak.Proc_suspendedContext] = this.vm.activeContext; // store initial context
+        this.activeProcess().pointers[Squeak.Proc_suspendedContext] = this.vm.activeContext; // store initial context
         this.vm.image.fullGC("snapshot");               // before cleanup so traversal works
         var buffer = this.vm.image.writeToBuffer();
         Squeak.flushAllFiles();                         // so there are no more writes pending
@@ -5281,7 +6394,7 @@ Object.subclass('Squeak.Primitives',
         return true;
     },
     primitiveTestDisplayDepth: function(argCount) {
-        var supportedDepths =  [1, 2, 4, 8, 16, 32]; // match showOnDisplay()
+        var supportedDepths =  [1, 2, 4, 8, 16, 32]; // match showForm
         return this.pop2andPushBoolIfOK(supportedDepths.indexOf(this.stackInteger(0)) >= 0);
     },
     loadForm: function(formObj, withOffset) {
@@ -5326,9 +6439,10 @@ Object.subclass('Squeak.Primitives',
         if (ctx) {
             var beep = ctx.createOscillator();
             beep.connect(ctx.destination);
+            beep.type = 'square';
             beep.frequency.value = 880;
-            beep.noteOn(0);
-            beep.noteOff(ctx.currentTime + 0.2);
+            beep.start();
+            beep.stop(ctx.currentTime + 0.2);
         } else {
             this.vm.warnOnce("could not initialize audio");
         }
@@ -5417,13 +6531,48 @@ Object.subclass('Squeak.Primitives',
     secondClock: function() {
         return this.pos32BitIntFor(Squeak.totalSeconds()); // will overflow 32 bits in 2037
     },
+    microsecondClock: function(state) {
+        var millis = Date.now() - state.epoch;
+        if (typeof performance !== "object")
+            return this.pos53BitIntFor(millis * 1000);
+        // use high-res clock, adjust for roll-over
+        var micros = performance.now() * 1000 % 1000 | 0,
+            oldMillis = state.millis,
+            oldMicros = state.micros;
+        if (oldMillis > millis) millis = oldMillis;                 // rolled over previously
+        if (millis === oldMillis && micros < oldMicros) millis++;   // roll over now
+        state.millis = millis;
+        state.micros = micros;
+        return this.pos53BitIntFor(millis * 1000 + micros);
+    },
     microsecondClockUTC: function() {
-        var millis = Date.now() - Squeak.EpochUTC;
-        return this.pos64BitIntFor(millis * 1000);
+        if (!this.microsecondClockUTCState)
+            this.microsecondClockUTCState = {epoch: Squeak.EpochUTC, millis: 0, micros: 0};
+        return this.microsecondClock(this.microsecondClockUTCState);
     },
     microsecondClockLocal: function() {
-        var millis = Date.now() - Squeak.Epoch;
-        return this.pos64BitIntFor(millis * 1000);
+        if (!this.microsecondClockLocalState)
+            this.microsecondClockLocalState = {epoch: Squeak.Epoch, millis: 0, micros: 0};
+        return this.microsecondClock(this.microsecondClockLocalState);
+    },
+    primitiveUtcWithOffset: function(argCount) {
+        var d = new Date();
+  var posixMicroseconds = this.pos53BitIntFor(d.getTime() * 1000);
+        var offset = -60 * d.getTimezoneOffset();
+        if (argCount > 0) {
+            // either an Array or a DateAndTime in new UTC format with two ivars
+            var stWordIndexableObject = this.vm.stackValue(0);
+            stWordIndexableObject.pointers[0] = posixMicroseconds;
+            stWordIndexableObject.pointers[1] = offset;
+            this.popNandPushIfOK(argCount + 1, stWordIndexableObject);
+            return true;
+        }
+        var timeAndOffset = [
+            posixMicroseconds,
+            offset,
+        ];
+        this.popNandPushIfOK(argCount + 1, this.makeStArray(timeAndOffset));
+        return true;
     },
 },
 'FilePlugin', {
@@ -5450,8 +6599,22 @@ Object.subclass('Squeak.Primitives',
         return this.popNandPushIfOK(1, this.charFromInt(delimitor.charCodeAt(0)));
     },
     primitiveDirectoryEntry: function(argCount) {
-        this.vm.warnOnce("Not yet implemented: primitiveDirectoryEntry");
-        return false; // image falls back on primitiveDirectoryLookup
+        var dirNameObj = this.stackNonInteger(1),
+            fileNameObj = this.stackNonInteger(0);
+        if (!this.success) return false;
+        var sqFileName = fileNameObj.bytesAsString();
+        var fileName = this.filenameFromSqueak(fileNameObj.bytesAsString());
+        var sqDirName = dirNameObj.bytesAsString();
+        var dirName = this.filenameFromSqueak(dirNameObj.bytesAsString());
+        var entries = Squeak.dirList(dirName, true);
+        if (!entries) {
+            var path = Squeak.splitFilePath(dirName);
+            console.log("Directory not found: " + path.fullname);
+            return false;
+        }
+        var entry = entries[fileName];
+        this.popNandPushIfOK(argCount+1, this.makeStObject(entry));  // entry or nil
+        return true;
     },
     primitiveDirectoryLookup: function(argCount) {
         var index = this.stackInteger(0),
@@ -5554,6 +6717,11 @@ Object.subclass('Squeak.Primitives',
         }
         if (startIndex < 0 || startIndex + count > arrayObj.bytes.length)
             return false;
+        if (typeof handle.file === "string") {
+            //this.fileConsoleRead(handle.file, array, startIndex, count);
+            this.popNandPushIfOK(argCount+1, 0);
+            return true;
+        }
         return this.fileContentsDo(handle.file, function(file) {
             if (!file.contents)
                 return this.popNandPushIfOK(argCount+1, 0);
@@ -5598,8 +6766,15 @@ Object.subclass('Squeak.Primitives',
         return true;
     },
     primitiveFileTruncate: function(argCount) {
-        console.warn("Not yet implemented: primitiveFileTruncate");
-        return false;
+        var pos = this.stackPos32BitInt(0),
+            handle = this.stackNonInteger(1);
+        if (!this.success || !handle.file || !handle.fileWrite) return false;
+        if (handle.file.size > pos) {
+            handle.file.size = pos;
+            handle.file.modified = true;
+            if (handle.filePos > handle.file.size) handle.filePos = handle.file.size;
+        }
+        return this.popNIfOK(argCount);
     },
     primitiveDisableFileAccess: function(argCount) {
         return this.fakePrimitive("FilePlugin.primitiveDisableFileAccess", 0, argCount);
@@ -5694,6 +6869,7 @@ Object.subclass('Squeak.Primitives',
             this.vm.freeze(function(unfreeze) {
                 Squeak.fileGet(file.name,
                     function success(contents) {
+                        if (contents == null) return error(file.name);
                         file.contents = this.asUint8Array(contents);
                         unfreeze();
                         func(file);
@@ -5713,9 +6889,10 @@ Object.subclass('Squeak.Primitives',
         error: ''
     },
     fileConsoleWrite: function(logOrError, array, startIndex, count) {
+        // buffer until there is a newline
         var bytes = array.subarray(startIndex, startIndex + count),
             buffer = this.fileConsoleBuffer[logOrError] + Squeak.bytesAsString(bytes),
-            lines = buffer.match('([^]*)\n');
+            lines = buffer.match('([^]*)\n(.*)');
         if (lines) {
             console[logOrError](lines[1]);  // up to last newline
             buffer = lines[2];              // after last newline
@@ -5748,7 +6925,7 @@ Object.subclass('Squeak.Primitives',
             fileNames = this.display.droppedFiles || [];
         if (index < 1 || index > fileNames.length) return false;
         var result = this.makeStString(this.filenameToSqueak(fileNames[index - 1]));
-        return this.popNandPushIfOK(argCount, result);
+        return this.popNandPushIfOK(argCount+1, result);
     },
 },
 'SoundPlugin', {
@@ -6187,8 +7364,6 @@ Object.subclass('Squeak.Primitives',
             isGlobal = !('jsObject' in rcvr),
             jsResult = null;
         try {
-            // prevent callbacks while running this primitive
-            this.js_activeCallback = "Callbacks must be asynchronous";
             var propName = selector.match(/([^:]*)/)[0];
             if (!isGlobal && propName === "new") {
                 if (args.length === 0) {
@@ -6221,9 +7396,6 @@ Object.subclass('Squeak.Primitives',
             }
         } catch(err) {
             return this.js_setError(err.message);
-        } finally {
-            // allow callbacks
-            this.js_activeCallback = null;
         }
         var stResult = this.makeStObject(jsResult, rcvr.sqClass);
         return this.popNandPushIfOK(argCount + 1, stResult);
@@ -6280,7 +7452,7 @@ Object.subclass('Squeak.Primitives',
         // we're inside an active callback, get block
         var callback = this.js_activeCallback;
         if (!callback) return this.js_setError("No active callback");
-        return this.popNandPushIfOK(argCount, callback.block);
+        return this.popNandPushIfOK(argCount+1, callback.block);
     },
     js_primitiveGetActiveCallbackArgs: function(argCount) {
         // we're inside an active callback, get args
@@ -6289,13 +7461,8 @@ Object.subclass('Squeak.Primitives',
         if (!callback) return this.js_setError("No active callback");
         try {
             // make array with expected number of arguments for block
-            var numArgs = callback.block.pointers[Squeak.BlockContext_argumentCount],
-                args = [];
-            if (typeof numArgs !== 'number')
-                numArgs = callback.block.pointers[Squeak.Closure_numArgs];
-            for (var i = 0; i < numArgs; i++)
-                args.push(callback.args[i]);
-            return this.popNandPushIfOK(argCount, this.makeStArray(args, proxyClass));
+            var array = this.makeStArray(callback.args, proxyClass);
+            return this.popNandPushIfOK(argCount+1, array);
         } catch(err) {
             return this.js_setError(err.message);
         }
@@ -6304,7 +7471,7 @@ Object.subclass('Squeak.Primitives',
         if (argCount !== 1) return false;
         if (!this.js_activeCallback)
             return this.js_setError("No active callback");
-        // set result so the interpret loop in js_fromStBlock() terminates
+        // set result so the interpret loop in js_executeCallback() terminates
         this.js_activeCallback.result = this.vm.pop();
         this.vm.breakOut(); // stop interpreting ASAP
         return true;
@@ -6359,17 +7526,34 @@ Object.subclass('Squeak.Primitives',
             throw Error("CallbackSemaphore not set");
         // block holds onto thisContext
         this.vm.reclaimableContextCount = 0;
+        var numArgs = block.pointers[Squeak.BlockContext_argumentCount];
+        if (typeof numArgs !== 'number')
+            numArgs = block.pointers[Squeak.Closure_numArgs];
         var squeak = this;
         return function evalSqueakBlock(/* arguments */) {
-            return squeak.js_executeCallback(block, arguments);
+            var args = [];
+            for (var i = 0; i < numArgs; i++)
+                args.push(arguments[i]);
+            return new Promise(function(resolve, reject) {
+                function evalAsync() {
+                    squeak.js_executeCallbackAsync(block, args, resolve, reject);
+                }
+                setTimeout(evalAsync, 0);
+            });
         }
     },
-    js_executeCallback: function(block, args) {
+    js_executeCallbackAsync: function(block, args, resolve, reject) {
+        var squeak = this;
+        function again() {squeak.js_executeCallbackAsync(block, args, resolve, reject)}
+        if (!this.js_activeCallback && !this.vm.frozen) {
+            this.js_executeCallback(block, args, resolve, reject);
+        } else {
+            setTimeout(again, 0);
+        }
+    },
+    js_executeCallback: function(block, args, resolve, reject) {
         if (this.js_activeCallback)
-            if (typeof this.js_activeCallback == "string")
-                throw Error(this.js_activeCallback);
-            else
-                return console.error("Callback: already active");
+            return console.error("Callback: already active");
         // make block and args available to primitiveGetActiveCallback
         this.js_activeCallback = {
             block: block,
@@ -6387,14 +7571,26 @@ Object.subclass('Squeak.Primitives',
         this.js_activeCallback = null;
         if (result) {
             // return result to JS caller as JS object or string
-            try { return this.js_fromStObject(result); }
-            catch(err) { return result.toString(); }
+            try { resolve(this.js_fromStObject(result)); }
+            catch(err) { resolve(result.toString()); }
         } else {
-            console.error("Callback error: " + (this.vm.frozen ? "frozen" : "timeout"));
+            reject(Error("SqueakJS timeout"));
         }
     },
     js_objectOrGlobal: function(sqObject) {
         return 'jsObject' in sqObject ? sqObject.jsObject : window;
+    },
+},
+'FFI', {
+    ffi_primitiveCalloutWithArgs: function(argCount) {
+        var extLibFunc = this.stackNonInteger(1),
+            argsObj = this.stackNonInteger(0);
+        if (!this.isKindOf(extLibFunc, Squeak.splOb_ClassExternalFunction)) return false;
+        var moduleName = extLibFunc.pointers[Squeak.ExtLibFunc_module].bytesAsString();
+        var funcName = extLibFunc.pointers[Squeak.ExtLibFunc_name].bytesAsString();
+        var args = argsObj.pointers.join(', ');
+        this.vm.warnOnce('FFI: ignoring ' + moduleName + ': ' + funcName + '(' + args + ')');
+        return false;
     },
 },
 'Obsolete', {
@@ -6482,135 +7678,135 @@ Object.subclass('Squeak.Primitives',
     primitiveFFTPermuteData: function(argCount) {
         return this.namedPrimitive("FFTPlugin", "primitiveFFTPermuteData", argCount);
     },
-	gePrimitiveMergeFillFrom: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveMergeFillFrom", argCount);
-	},
-	gePrimitiveCopyBuffer: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveCopyBuffer", argCount);
-	},
-	gePrimitiveAddRect: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddRect", argCount);
-	},
-	gePrimitiveAddGradientFill: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddGradientFill", argCount);
-	},
-	gePrimitiveSetClipRect: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetClipRect", argCount);
-	},
-	gePrimitiveSetBitBltPlugin: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetBitBltPlugin", argCount);
-	},
-	gePrimitiveRegisterExternalEdge: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveRegisterExternalEdge", argCount);
-	},
-	gePrimitiveGetClipRect: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetClipRect", argCount);
-	},
-	gePrimitiveAddBezier: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddBezier", argCount);
-	},
-	gePrimitiveInitializeProcessing: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveInitializeProcessing", argCount);
-	},
-	gePrimitiveRenderImage: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveRenderImage", argCount);
-	},
-	gePrimitiveGetOffset: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetOffset", argCount);
-	},
-	gePrimitiveSetDepth: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetDepth", argCount);
-	},
-	gePrimitiveAddBezierShape: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddBezierShape", argCount);
-	},
-	gePrimitiveSetEdgeTransform: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetEdgeTransform", argCount);
-	},
-	gePrimitiveGetTimes: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetTimes", argCount);
-	},
-	gePrimitiveNextActiveEdgeEntry: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveNextActiveEdgeEntry", argCount);
-	},
-	gePrimitiveAddBitmapFill: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddBitmapFill", argCount);
-	},
-	gePrimitiveGetDepth: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetDepth", argCount);
-	},
-	gePrimitiveAbortProcessing: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAbortProcessing", argCount);
-	},
-	gePrimitiveNextGlobalEdgeEntry: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveNextGlobalEdgeEntry", argCount);
-	},
-	gePrimitiveGetFailureReason: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetFailureReason", argCount);
-	},
-	gePrimitiveDisplaySpanBuffer: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveDisplaySpanBuffer", argCount);
-	},
-	gePrimitiveGetCounts: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetCounts", argCount);
-	},
-	gePrimitiveChangedActiveEdgeEntry: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveChangedActiveEdgeEntry", argCount);
-	},
-	gePrimitiveRenderScanline: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveRenderScanline", argCount);
-	},
-	gePrimitiveGetBezierStats: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetBezierStats", argCount);
-	},
-	gePrimitiveFinishedProcessing: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveFinishedProcessing", argCount);
-	},
-	gePrimitiveNeedsFlush: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveNeedsFlush", argCount);
-	},
-	gePrimitiveAddLine: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddLine", argCount);
-	},
-	gePrimitiveSetOffset: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetOffset", argCount);
-	},
-	gePrimitiveNextFillEntry: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveNextFillEntry", argCount);
-	},
-	gePrimitiveInitializeBuffer: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveInitializeBuffer", argCount);
-	},
-	gePrimitiveDoProfileStats: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveDoProfileStats", argCount);
-	},
-	gePrimitiveAddActiveEdgeEntry: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddActiveEdgeEntry", argCount);
-	},
-	gePrimitiveSetAALevel: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetAALevel", argCount);
-	},
-	gePrimitiveNeedsFlushPut: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveNeedsFlushPut", argCount);
-	},
-	gePrimitiveAddCompressedShape: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddCompressedShape", argCount);
-	},
-	gePrimitiveSetColorTransform: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveSetColorTransform", argCount);
-	},
-	gePrimitiveAddOval: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddOval", argCount);
-	},
-	gePrimitiveRegisterExternalFill: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveRegisterExternalFill", argCount);
-	},
-	gePrimitiveAddPolygon: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveAddPolygon", argCount);
-	},
-	gePrimitiveGetAALevel: function(argCount) {
-	    return this.namedPrimitive("B2DPlugin", "primitiveGetAALevel", argCount);
-	},
+  gePrimitiveMergeFillFrom: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveMergeFillFrom", argCount);
+  },
+  gePrimitiveCopyBuffer: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveCopyBuffer", argCount);
+  },
+  gePrimitiveAddRect: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddRect", argCount);
+  },
+  gePrimitiveAddGradientFill: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddGradientFill", argCount);
+  },
+  gePrimitiveSetClipRect: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetClipRect", argCount);
+  },
+  gePrimitiveSetBitBltPlugin: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetBitBltPlugin", argCount);
+  },
+  gePrimitiveRegisterExternalEdge: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveRegisterExternalEdge", argCount);
+  },
+  gePrimitiveGetClipRect: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetClipRect", argCount);
+  },
+  gePrimitiveAddBezier: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddBezier", argCount);
+  },
+  gePrimitiveInitializeProcessing: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveInitializeProcessing", argCount);
+  },
+  gePrimitiveRenderImage: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveRenderImage", argCount);
+  },
+  gePrimitiveGetOffset: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetOffset", argCount);
+  },
+  gePrimitiveSetDepth: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetDepth", argCount);
+  },
+  gePrimitiveAddBezierShape: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddBezierShape", argCount);
+  },
+  gePrimitiveSetEdgeTransform: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetEdgeTransform", argCount);
+  },
+  gePrimitiveGetTimes: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetTimes", argCount);
+  },
+  gePrimitiveNextActiveEdgeEntry: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveNextActiveEdgeEntry", argCount);
+  },
+  gePrimitiveAddBitmapFill: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddBitmapFill", argCount);
+  },
+  gePrimitiveGetDepth: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetDepth", argCount);
+  },
+  gePrimitiveAbortProcessing: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAbortProcessing", argCount);
+  },
+  gePrimitiveNextGlobalEdgeEntry: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveNextGlobalEdgeEntry", argCount);
+  },
+  gePrimitiveGetFailureReason: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetFailureReason", argCount);
+  },
+  gePrimitiveDisplaySpanBuffer: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveDisplaySpanBuffer", argCount);
+  },
+  gePrimitiveGetCounts: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetCounts", argCount);
+  },
+  gePrimitiveChangedActiveEdgeEntry: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveChangedActiveEdgeEntry", argCount);
+  },
+  gePrimitiveRenderScanline: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveRenderScanline", argCount);
+  },
+  gePrimitiveGetBezierStats: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetBezierStats", argCount);
+  },
+  gePrimitiveFinishedProcessing: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveFinishedProcessing", argCount);
+  },
+  gePrimitiveNeedsFlush: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveNeedsFlush", argCount);
+  },
+  gePrimitiveAddLine: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddLine", argCount);
+  },
+  gePrimitiveSetOffset: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetOffset", argCount);
+  },
+  gePrimitiveNextFillEntry: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveNextFillEntry", argCount);
+  },
+  gePrimitiveInitializeBuffer: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveInitializeBuffer", argCount);
+  },
+  gePrimitiveDoProfileStats: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveDoProfileStats", argCount);
+  },
+  gePrimitiveAddActiveEdgeEntry: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddActiveEdgeEntry", argCount);
+  },
+  gePrimitiveSetAALevel: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetAALevel", argCount);
+  },
+  gePrimitiveNeedsFlushPut: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveNeedsFlushPut", argCount);
+  },
+  gePrimitiveAddCompressedShape: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddCompressedShape", argCount);
+  },
+  gePrimitiveSetColorTransform: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveSetColorTransform", argCount);
+  },
+  gePrimitiveAddOval: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddOval", argCount);
+  },
+  gePrimitiveRegisterExternalFill: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveRegisterExternalFill", argCount);
+  },
+  gePrimitiveAddPolygon: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveAddPolygon", argCount);
+  },
+  gePrimitiveGetAALevel: function(argCount) {
+      return this.namedPrimitive("B2DPlugin", "primitiveGetAALevel", argCount);
+  },
 });
 
 Object.subclass('Squeak.InterpreterProxy',
@@ -7032,6 +8228,9 @@ Object.subclass('Squeak.InstructionPrinter',
             this.innerIndents[i] = (this.innerIndents[i] || 0) + 1;
         if (to > this.endPC) this.endPC = to;
     },
+    callPrimitive: function(primitiveIndex) {
+        this.print('primitive: ' + primitiveIndex);
+    },
 });
 
 Object.subclass('Squeak.InstructionStream',
@@ -7141,8 +8340,8 @@ Object.subclass('Squeak.InstructionStream',
         var byte2 = this.method.bytes[this.pc++];
         if (offset === 10)
             return byte2 < 128 ? client.pushNewArray(byte2) : client.popIntoNewArray(byte2 - 128);
-        if (offset === 11) throw Error("unusedBytecode");
         var byte3 = this.method.bytes[this.pc++];
+        if (offset === 11) return client.callPrimitive(byte2 + 256 * byte3);
         if (offset === 12) return client.pushRemoteTemp(byte2, byte3);
         if (offset === 13) return client.storeIntoRemoteTemp(byte2, byte3);
         if (offset === 14) return client.popIntoRemoteTemp(byte2, byte3);
@@ -7154,7 +8353,7 @@ Object.subclass('Squeak.InstructionStream',
 
 module.exports = {
   Squeak: Squeak,
-  SqueakJS: SqueakJS
+  SqueakJS: users.bert.SqueakJS,
 };
 
-}); // end of module
+}) // end of module

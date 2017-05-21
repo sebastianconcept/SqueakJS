@@ -42,6 +42,7 @@ window.module = function(dottedPath) {
                     function load() {
                         code();
                         self.loaded = true;
+                        console.log('toRun:', self.pending);
                         self.pending.forEach(function(f){f();});
                     }
                     if (req && !module(req).loaded) {

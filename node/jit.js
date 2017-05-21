@@ -1,6 +1,8 @@
-var sqModule = require('./sqModule');
+var module = require('./extensions').module;
+Object.subclass = require('./extensions').subclass;
 
-sqModule('users.bert.SqueakJS.jit').requires("users.bert.SqueakJS.vm").toRun(function() {
+
+module('users.bert.SqueakJS.jit').requires("users.bert.SqueakJS.vm").toRun(function() {
 'use strict';
 /*
  * Copyright (c) 2014-2016 Bert Freudenberg
