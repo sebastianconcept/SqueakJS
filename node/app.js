@@ -6,11 +6,10 @@ if (!imageName) {
 }
 
 
-
 console.log('About to run SqueakJS ...');
 
 SqueakJS.runSqueak({
   imageName: imageName,
-  url: __dirname
+  url: __dirname,
+  argv: process.argv.slice(2)
 });
-

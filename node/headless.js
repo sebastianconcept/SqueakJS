@@ -930,7 +930,10 @@ SqueakJS.runImage = function (buffer, name, options) {
         var image = new Squeak.Image(name);
         image.readFromBuffer(buffer, function startRunning() {
             SqueakJS.quitFlag = false;
-            var fakeDisplay = {};
+            // Adding arguments vector where the vm expects it later.
+            var fakeDisplay = {
+              argv: options.argv || ''
+            };
             var vm = new Squeak.Interpreter(image, fakeDisplay);
             SqueakJS.vm = vm;
             localStorage['squeakImageName'] = name;
@@ -964,7 +967,7 @@ SqueakJS.runImage = function (buffer, name, options) {
             run();
         },
         function readProgress (value) {
-          console.log('Reading progress: ', value);
+          // console.log('Reading progress: ', value);
         });
     }, 0);
 };
