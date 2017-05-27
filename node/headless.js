@@ -999,14 +999,8 @@ function fetchTemplates (options) {
 }
 
 function processFile (file, options, thenDo) {
-    Squeak.filePut(options.root + file.name, file.data, function () {
-        console.log('Stored ' + options.root + file.name);
-        if (file.zip) {
-            processZip(file, options, thenDo);
-        } else {
-            thenDo();
-        }
-    });
+    // No-op, just the after callback action since for NodeJS we don't need any extra manipulation on files.
+    throw new Error('Should not be used processFile');
 }
 
 function processZip (file, options, thenDo) {
@@ -1075,22 +1069,26 @@ function checkExisting(file, options, ifExists, ifNotExists) {
     }
 }
 
-function downloadFile (file, options, thenDo) {
-    // This downloadFile method is actually doing an async read on a local file.
+function loadFile (file, options, thenDo) {
+
     var absoluteFilename = file.url;
     if( !fs.existsSync(absoluteFilename) ) {
-      throw new Error(`File not found ${absoluteFilename}`);
+        throw new Error(`File not found ${absoluteFilename}`);
     }
 
     console.log('Loading ' + absoluteFilename);
 
     fs.readFile(absoluteFilename, (err, data) => {
-      if (err) throw new Error('Failed to load ', file);
-      var anArrayBuffer = new ArrayBuffer(data.size);
-      var anArrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      file.data = anArrayBuffer;
-      processFile(file, options, thenDo);
+        if (err) throw new Error('Failed to load ', file);
+        var anArrayBuffer = new ArrayBuffer(data.size);
+        var anArrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        file.data = anArrayBuffer;
+        thenDo();
     });
+}
+
+function downloadFile (file, options, thenDo) {
+    throw new Error('Should not be used downloadFile');
 }
 
 function fetchFiles (files, options, thenDo) {
@@ -1105,7 +1103,7 @@ function fetchFiles (files, options, thenDo) {
                 getNextFile();
             },
             function ifNotExists() {
-                downloadFile(file, options, getNextFile);
+                loadFile(file, options, getNextFile);
             });
     }
     getNextFile();

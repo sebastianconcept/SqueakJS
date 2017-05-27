@@ -535,6 +535,7 @@ Object.extend(Squeak,
     filePut: function(filepath, contents, optSuccess) {
         // store file, return dir entry if successful
       console.log('----------------------------> filePut filepath', filepath);
+      debugger
         var path = this.splitFilePath(filepath); if (!path.basename) return null;
         var directory = this.dirList(path.dirname); if (!directory) return null;
         // get or create entry
@@ -622,6 +623,7 @@ Object.extend(Squeak,
         return true;
     },
     dirDelete: function(dirpath) {
+      debugger
         var path = this.splitFilePath(dirpath); if (!path.basename) return false;
         var directory = this.dirList(path.dirname); if (!directory) return false;
         if (!directory[path.basename]) return false;
@@ -637,6 +639,7 @@ Object.extend(Squeak,
     },
     dirList: function(dirpath, includeTemplates) {
         // return directory entries or null
+      debugger
         var path = this.splitFilePath(dirpath),
             localEntries = localStorage["squeak:" + path.fullname],
             template = includeTemplates && localStorage["squeak-template:" + path.fullname];
@@ -706,6 +709,7 @@ Object.extend(Squeak,
         // Called on app startup. Fetch url/sqindex.json and
         // cache all subdirectory entries in localStorage.
         // File contents is only fetched on demand
+      debugger
         path = Squeak.splitFilePath(path).fullname;
         function ensureTemplateParent(template) {
             var path = Squeak.splitFilePath(template);
@@ -752,6 +756,7 @@ Object.extend(Squeak,
         }
     },
     fetchTemplateFile: function(path, ifFound, ifNotFound) {
+      debugger
         path = Squeak.splitFilePath(path);
         var template = localStorage["squeak-template:" + path.dirname];
         if (!template) return ifNotFound();
