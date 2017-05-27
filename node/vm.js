@@ -1,3 +1,5 @@
+var fs = require('fs');
+var path = require('path');
 var module = require('./extensions').module;
 Object.extend = require('./extensions').extend;
 Function.prototype.subclass = require('./extensions').subclass;
@@ -500,33 +502,39 @@ Object.extend(Squeak,
         return SqueakDBFake;
     },
     fileGet: function(filepath, thenDo, errorDo) {
-        if (!errorDo) errorDo = function(err) { console.log(err) };
-        var path = this.splitFilePath(filepath);
-        if (!path.basename) return errorDo("Invalid path: " + filepath);
-        // if we have been writing to memory, return that version
-        if (global.SqueakDBFake && SqueakDBFake.bigFiles[path.fullname])
-            return thenDo(SqueakDBFake.bigFiles[path.fullname]);
-        this.dbTransaction("readonly", "get " + filepath, function(fileStore) {
-            var getReq = fileStore.get(path.fullname);
-            getReq.onerror = function(e) { errorDo(e.target.error.name) };
-            getReq.onsuccess = function(e) {
-                if (this.result !== undefined) return thenDo(this.result);
-                // might be a template
-                Squeak.fetchTemplateFile(path.fullname,
-                    function gotTemplate(template) {thenDo(template)},
-                    function noTemplate() {
-                        // if no indexedDB then we have checked fake db already
-                        if (typeof indexedDB == "undefined") return errorDo("file not found: " + path.fullname);
-                        // fall back on fake db, may be file is there
-                        var fakeReq = Squeak.dbFake().get(path.fullname);
-                        fakeReq.onerror = function(e) { errorDo("file not found: " + path.fullname) };
-                        fakeReq.onsuccess = function(e) { thenDo(this.result); }
-                    });
-            };
-        });
+      // Reads the file at filepath and calls thenDo with the read data or errorDo if things go bad.
+      if (!errorDo) errorDo = function(err) { console.log('fileGet',err) };
+      var path = this.splitFilePath(filepath);
+      if (!path.basename) return errorDo("Invalid path: " + filepath);
+      console.log('----------------------------> fileGet filepath', path);
+
+        // var path = this.splitFilePath(filepath);
+        // if (!path.basename) return errorDo("Invalid path: " + filepath);
+        // // if we have been writing to memory, return that version
+        // if (global.SqueakDBFake && SqueakDBFake.bigFiles[path.fullname])
+        //     return thenDo(SqueakDBFake.bigFiles[path.fullname]);
+        // this.dbTransaction("readonly", "get " + filepath, function(fileStore) {
+        //     var getReq = fileStore.get(path.fullname);
+        //     getReq.onerror = function(e) { errorDo(e.target.error.name) };
+        //     getReq.onsuccess = function(e) {
+        //         if (this.result !== undefined) return thenDo(this.result);
+        //         // might be a template
+        //         Squeak.fetchTemplateFile(path.fullname,
+        //             function gotTemplate(template) {thenDo(template)},
+        //             function noTemplate() {
+        //                 // if no indexedDB then we have checked fake db already
+        //                 if (typeof indexedDB == "undefined") return errorDo("file not found: " + path.fullname);
+        //                 // fall back on fake db, may be file is there
+        //                 var fakeReq = Squeak.dbFake().get(path.fullname);
+        //                 fakeReq.onerror = function(e) { errorDo("file not found: " + path.fullname) };
+        //                 fakeReq.onsuccess = function(e) { thenDo(this.result); }
+        //             });
+        //     };
+        // });
     },
     filePut: function(filepath, contents, optSuccess) {
         // store file, return dir entry if successful
+      console.log('----------------------------> filePut filepath', filepath);
         var path = this.splitFilePath(filepath); if (!path.basename) return null;
         var directory = this.dirList(path.dirname); if (!directory) return null;
         // get or create entry
@@ -552,6 +560,7 @@ Object.extend(Squeak,
         return entry;
     },
     fileDelete: function(filepath, entryOnly) {
+        console.log('----------------------------> fileDelete filepath', filepath);
         var path = this.splitFilePath(filepath); if (!path.basename) return false;
         var directory = this.dirList(path.dirname); if (!directory) return false;
         var entry = directory[path.basename]; if (!entry || entry[3]) return false; // not found or is a directory
@@ -566,6 +575,7 @@ Object.extend(Squeak,
         return true;
     },
     fileRename: function(from, to) {
+        console.log('----------------------------> fileRename', from, to);
         var oldpath = this.splitFilePath(from); if (!oldpath.basename) return false;
         var newpath = this.splitFilePath(to); if (!newpath.basename) return false;
         var olddir = this.dirList(oldpath.dirname); if (!olddir) return false;
@@ -592,12 +602,14 @@ Object.extend(Squeak,
         return true;
     },
     fileExists: function (filepath) {
+        // Answers true if filepath is a file.
+        // Obs: will return false when it exists but is a directory.
         var path = this.splitFilePath(filepath); if (!path.basename) return false;
         var directory = this.dirList(path.dirname); if (!directory) return false;
-        var entry = directory[path.basename]; if (!entry || entry[3]) return false; // not found or is a directory
-        return true;
+        return (fs.lstatSync(path.fullname)).isFile();
     },
     dirCreate: function(dirpath, withParents) {
+      debugger
         var path = this.splitFilePath(dirpath); if (!path.basename) return false;
         if (withParents && !localStorage["squeak:" + path.dirname]) Squeak.dirCreate(path.dirname, true);
         var directory = this.dirList(path.dirname); if (!directory) return false;
