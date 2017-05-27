@@ -34,6 +34,9 @@ if (typeof localStorage === 'undefined' || localStorage === null) {
 Object.extend = require('./extensions').extend;
 Function.prototype.subclass = require('./extensions').subclass;
 
+var defaultDir = __dirname; // we default to work on the current directory
+
+
 //////////////////////////////////////////////////////////////////////////////
 // load vm, plugins, and other libraries
 //////////////////////////////////////////////////////////////////////////////
@@ -973,25 +976,8 @@ SqueakJS.runImage = function (buffer, name, options) {
 };
 
 function processOptions (options) {
-    // var search = (location.hash || location.search).slice(1),
-    //     args = search && search.split("&");
-    var args = '';
-    if (args) for (var i = 0; i < args.length; i++) {
-        var keyAndVal = args[i].split("="),
-            key = keyAndVal[0],
-            val = true;
-        if (keyAndVal.length > 1) {
-            val = decodeURIComponent(keyAndVal.slice(1).join("="));
-            if (val.match(/^(true|false|null|[0-9"[{].*)$/))
-                try { val = JSON.parse(val); } catch(e) {
-                    if (val[0] === "[") val = val.slice(1,-1).split(","); // handle string arrays
-                    // if not JSON use string itself
-                }
-        }
-        options[key] = val;
-    }
-    var root = Squeak.splitFilePath(options.root || "/").fullname;
-    Squeak.dirCreate(root, true);
+    // Normalizes the root dir and startup options.
+    var root = Squeak.splitFilePath(options.root || defaultDir).fullname;
     if (!/\/$/.test(root)) root += "/";
     options.root = root;
     SqueakJS.options = options;

@@ -10,6 +10,5 @@ console.log('About to run SqueakJS ...');
 
 SqueakJS.runSqueak({
   imageName: imageName,
-  root: __dirname,
   argv: process.argv.slice(2)
 });
