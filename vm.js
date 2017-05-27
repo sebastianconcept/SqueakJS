@@ -298,6 +298,7 @@ Object.extend(Squeak,
         }
         // check directories
         var entries = Squeak.dirList(dir);
+        debugger
         for (var name in entries) {
             var path = dir + "/" + name,
                 isDir = entries[name][3];

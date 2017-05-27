@@ -166,16 +166,15 @@ function setupFullscreen(display, canvas, options) {
 }
 
 function setupSwapButtons(options) {
-    debugger
     if (options.swapCheckbox) {
-        var imageName = localStorage["squeakImageName"] || "default",
-            settings = JSON.parse(localStorage["squeakSettings:" + imageName] || "{}");
+        var imageName = localStorage.getItem('squeakImageName') || 'default',
+            settings = JSON.parse(localStorage.getItem("squeakSettings:" + imageName) || "{}") ;
         if ("swapButtons" in settings) options.swapButtons = settings.swapButtons;
         options.swapCheckbox.checked = options.swapButtons;
         options.swapCheckbox.onclick = function() {
             options.swapButtons = options.swapCheckbox.checked;
             settings["swapButtons"] = options.swapButtons;
-            localStorage["squeakSettings:" + imageName] = JSON.stringify(settings);
+            localStorage.setItem('squeakSettings:' + imageName, JSON.stringify(settings) );
         };
     }
 }
@@ -1050,6 +1049,7 @@ function processZip (file, options, thenDo) {
 }
 
 function checkExisting(file, options, ifExists, ifNotExists) {
+  debugger // should not use?
     if (!Squeak.fileExists(options.root + file.name))
         return ifNotExists();
     if (file.image || file.zip) {
@@ -1153,7 +1153,7 @@ SqueakJS.runSqueak = function (options) {
     options.image = image;
 
     fetchFiles(files, options, function thenDo () {
-        Squeak.fsck();
+        Squeak.fsck(function () {}, options.root || defaultDir);
         var image = options.image;
         if (!image.name) throw new Error('could not find an image '+JSON.stringify(image));
         if (!image.data) throw new Error('could not find image ' + image.name);

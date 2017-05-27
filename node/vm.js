@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var _ = require('underscore');
 var module = require('./extensions').module;
 Object.extend = require('./extensions').extend;
 Function.prototype.subclass = require('./extensions').subclass;
@@ -278,86 +279,19 @@ Object.extend(Squeak,
 },
 "files", {
     fsck: function (whenDone, dir, files, stats) {
-        dir = dir || "";
-        stats = stats || {dirs: 0, files: 0, bytes: 0, deleted: 0};
-        if (!files) {
-            // find existing files
-            files = {};
-            for (var key in localStorage) {
-                var match = key.match(/squeak-file(\.lz)?:(.*)$/);
-                if (match) {files[match[2]] = true};
-            }
-            if (typeof indexedDB !== "undefined") {
-                return this.dbTransaction("readonly", "fsck cursor", function (fileStore) {
-                    var cursorReq = fileStore.openCursor();
-                    cursorReq.onsuccess = function(e) {
-                        var cursor = e.target.result;
-                        if (cursor) {
-                            files[cursor.key] = true;
-                            cursor.continue();
-                        } else { // done
-                            Squeak.fsck(whenDone, dir, files, stats);
-                        }
-                    }
-                    cursorReq.onerror = function(e) {
-                        console.error("fsck failed");
-                    }
-                });
-            }
-        }
-        // check directories
+        dir = dir || '';
         var entries = Squeak.dirList(dir);
-        for (var name in entries) {
-            var path = dir + "/" + name,
-                isDir = entries[name][3];
-            if (isDir) {
-                var exists = "squeak:" + path in localStorage;
-                if (exists) {
-                    Squeak.fsck(null, path, files, stats);
-                    stats.dirs++;
-                } else {
-                    console.log("Deleting stale directory " + path);
-                    Squeak.dirDelete(path);
-                    stats.deleted++;
-                }
-            } else {
-                if (!files[path]) {
-                    console.log("Deleting stale file entry " + path);
-                    Squeak.fileDelete(path, true);
-                    stats.deleted++;
-                } else {
-                    files[path] = false; // mark as visited
-                    stats.files++;
-                    stats.bytes += entries[name][4];
-                }
-            }
-        }
-        // check orphaned files
-        if (dir === "") {
-            console.log("squeak fsck: " + stats.dirs + " directories, " + stats.files + " files, " + (stats.bytes/1000000).toFixed(1) + " MBytes");
-            var orphaned = [],
-                total = 0;
-            for (var path in files) {
-                total++;
-                if (files[path]) orphaned.push(path); // not marked visited
-            }
-            if (orphaned.length > 0) {
-                for (var i = 0; i < orphaned.length; i++) {
-                    console.log("Deleting orphaned file " + orphaned[i]);
-                    delete localStorage["squeak-file:" + orphaned[i]];
-                    delete localStorage["squeak-file.lz:" + orphaned[i]];
-                    stats.deleted++;
-                }
-                if (typeof indexedDB !== "undefined") {
-                    this.dbTransaction("readwrite", "fsck delete", function(fileStore) {
-                        for (var i = 0; i < orphaned.length; i++) {
-                            fileStore.delete(orphaned[i]);
-                        };
-                    });
-                }
-            }
-            if (whenDone) whenDone(stats);
-        }
+        var onlyDirectories = _(entries).filter( function (each) { return each[3] });
+        var onlyFiles = _(entries).filter( function (each) { return !each[3] });
+        stats = stats || {
+          dirs: onlyDirectories.length,
+          files: onlyFiles.length,
+          bytes: 0,
+          deleted: 0};
+
+        // check directories
+
+        if (whenDone) whenDone(stats);
     },
     dbTransaction: function(mode, description, transactionFunc, completionFunc) {
         // File contents is stored in the IndexedDB named "squeak" in object store "files"
@@ -508,6 +442,29 @@ Object.extend(Squeak,
       if (!path.basename) return errorDo("Invalid path: " + filepath);
       console.log('----------------------------> fileGet filepath', path);
 
+
+      var absoluteFilename = path.fullname;
+      if( !fs.existsSync(absoluteFilename) ) {
+          throw new Error(`File not found ${absoluteFilename}`);
+      }
+
+      console.log('Loading ' + absoluteFilename);
+
+      fs.readFile(absoluteFilename, (err, data) => {
+          if (err) {
+              if(!errorDo) {
+                  throw new Error('Failed to load ', absoluteFilename)
+              } else {
+                  errorDo(err)
+              };
+          };
+
+          var anArrayBuffer = new ArrayBuffer(data.size);
+          var anArrayBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+          // file.data = anArrayBuffer;
+          thenDo(anArrayBuffer);
+      });
+
         // var path = this.splitFilePath(filepath);
         // if (!path.basename) return errorDo("Invalid path: " + filepath);
         // // if we have been writing to memory, return that version
@@ -606,7 +563,7 @@ Object.extend(Squeak,
         // Answers true if filepath is a file.
         // Obs: will return false when it exists but is a directory.
         var path = this.splitFilePath(filepath); if (!path.basename) return false;
-        var directory = this.dirList(path.dirname); if (!directory) return false;
+        // var directory = this.dirList(path.dirname); if (!directory) return false;
         return (fs.lstatSync(path.fullname)).isFile();
     },
     dirCreate: function(dirpath, withParents) {
@@ -637,29 +594,19 @@ Object.extend(Squeak,
         delete localStorage["squeak:" + path.fullname];
         return true;
     },
-    dirList: function(dirpath, includeTemplates) {
+    dirList: function (dirpath, includeTemplates) {
         // return directory entries or null
-      debugger
-        var path = this.splitFilePath(dirpath),
-            localEntries = localStorage["squeak:" + path.fullname],
-            template = includeTemplates && localStorage["squeak-template:" + path.fullname];
-        function addEntries(dir, entries) {
-            for (var key in entries) {
-                if (entries.hasOwnProperty(key)) {
-                    var entry = entries[key];
-                    dir[entry[0]] = entry;
-                }
-            }
-        }
-        if (localEntries || template) {
-            // local entries override templates
-            var dir = {};
-            if (template) addEntries(dir, JSON.parse(template).entries);
-            if (localEntries) addEntries(dir, JSON.parse(localEntries));
-            return dir;
-        }
-        if (path.fullname == "/") return {};
-        return null;
+        var thePath = this.splitFilePath(dirpath);
+        var localEntries = fs.readdirSync(thePath.fullname);
+
+        var dir = {};
+        localEntries.forEach( function (entry) {
+          // We set the entries objects as expected by the vm, setting its attributes.
+          var fullname = path.join(thePath.dirname, entry);
+          var stats = fs.statSync(fullname);
+          dir[entry] = [ entry, null, null, stats.isDirectory() , stats.size ];
+        });
+        return dir;
     },
     splitFilePath: function(filepath) {
         if (filepath[0] !== '/') filepath = '/' + filepath;
