@@ -4,7 +4,7 @@ Function.prototype.subclass = require('./extensions').subclass;
 
 // if in private mode set localStorage to a regular dict
 var LocalStorage = require('node-localstorage').LocalStorage;
-global.localStorage = new LocalStorage('./localStorage');
+global.localStorage = new LocalStorage('./localStorage', Number.MAX_VALUE);
 
 try {
   localStorage['squeak-foo:'] = 'bar';
@@ -275,7 +275,7 @@ Object.extend(Squeak,
     },
 },
 "files", {
-    fsck: function(whenDone, dir, files, stats) {
+    fsck: function (whenDone, dir, files, stats) {
         dir = dir || "";
         stats = stats || {dirs: 0, files: 0, bytes: 0, deleted: 0};
         if (!files) {
@@ -286,7 +286,7 @@ Object.extend(Squeak,
                 if (match) {files[match[2]] = true};
             }
             if (typeof indexedDB !== "undefined") {
-                return this.dbTransaction("readonly", "fsck cursor", function(fileStore) {
+                return this.dbTransaction("readonly", "fsck cursor", function (fileStore) {
                     var cursorReq = fileStore.openCursor();
                     cursorReq.onsuccess = function(e) {
                         var cursor = e.target.result;
@@ -591,7 +591,7 @@ Object.extend(Squeak,
             }.bind(this));
         return true;
     },
-    fileExists: function(filepath) {
+    fileExists: function (filepath) {
         var path = this.splitFilePath(filepath); if (!path.basename) return false;
         var directory = this.dirList(path.dirname); if (!directory) return false;
         var entry = directory[path.basename]; if (!entry || entry[3]) return false; // not found or is a directory
@@ -5691,7 +5691,6 @@ Object.subclass('Squeak.Primitives',
     },
     primitiveClosureCopyWithCopiedValues: function(argCount) {
         this.vm.breakNow("primitiveClosureCopyWithCopiedValues");
-        debugger;
         return false;
     },
     primitiveClosureValue: function(argCount) {
@@ -6152,7 +6151,6 @@ Object.subclass('Squeak.Primitives',
     },
     primitiveExitToDebugger: function(argCount) {
         this.vm.breakNow("debugger primitive");
-        debugger;
         return true;
     },
     primitiveSetGCBiasToGrow: function(argCount) {
@@ -6821,7 +6819,7 @@ Object.subclass('Squeak.Primitives',
         // if a file is opened for read and write at the same time,
         // they must share the contents. That's why all open files
         // are held in the ref-counted global SqueakFiles
-        if (typeof SqueakFiles == 'undefined')
+        if (typeof SqueakFiles === 'undefined')
             global.SqueakFiles = {};
         var path = Squeak.splitFilePath(filename);
         if (!path.basename) return null;    // malformed filename
