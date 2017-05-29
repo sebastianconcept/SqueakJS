@@ -594,6 +594,16 @@ Object.extend(Squeak,
         delete localStorage["squeak:" + path.fullname];
         return true;
     },
+    isDirectory: function (filepath) {
+      // Answers true if filepath corresponds to a file that exists and it's a directory.
+      var stats = fs.statSync(filepath);
+      return stats.isDirectory();
+    },
+    isFile: function (filepath) {
+      // Answers true if filepath corresponds to a file that exists and is not a directory.
+      var stats = fs.statSync(filepath);
+      return stats.isFile();
+    },
     dirList: function (dirpath, includeTemplates) {
         // return directory entries or null
         var thePath = this.splitFilePath(dirpath);
@@ -602,7 +612,7 @@ Object.extend(Squeak,
         var dir = {};
         localEntries.forEach( function (entry) {
           // We set the entries objects as expected by the vm, setting its attributes.
-          var fullname = path.join(thePath.dirname, entry);
+          var fullname = path.join(dirpath, entry);
           var stats = fs.statSync(fullname);
           dir[entry] = [ entry, null, null, stats.isDirectory() , stats.size ];
         });
@@ -5097,17 +5107,18 @@ Object.subclass('Squeak.Primitives',
     },
     filenameToSqueak: function(unixpath) {
         var slash = unixpath[0] !== "/" ? "/" : "",
-            filepath = "/SqueakJS" + slash + unixpath;                      // add SqueakJS
+            // filepath = "/SqueakJS" + slash + unixpath;                      // add SqueakJS
+            filepath = slash + unixpath;                      // add SqueakJS
         if (this.emulateMac)
             filepath = ("Macintosh HD" + filepath)                          // add Mac volume
                 .replace(/\//g, "€").replace(/:/g, "/").replace(/€/g, ":"); // substitute : for /
-        return filepath;
+        return unixpath;
     },
     filenameFromSqueak: function(filepath) {
         var unixpath = !this.emulateMac ? filepath :
             filepath.replace(/^[^:]*:/, ":")                            // remove volume
             .replace(/\//g, "€").replace(/:/g, "/").replace(/€/g, ":"); // substitute : for /
-        unixpath = unixpath.replace(/^\/*SqueakJS\/?/, "/");            // strip SqueakJS
+        // unixpath = unixpath.replace(/^\/*SqueakJS\/?/, "/");            // strip SqueakJS
         return unixpath;
     },
 },
@@ -6572,6 +6583,7 @@ Object.subclass('Squeak.Primitives',
         var sqFileName = fileNameObj.bytesAsString();
         var fileName = this.filenameFromSqueak(fileNameObj.bytesAsString());
         var sqDirName = dirNameObj.bytesAsString();
+        debugger
         var dirName = this.filenameFromSqueak(dirNameObj.bytesAsString());
         var entries = Squeak.dirList(dirName, true);
         if (!entries) {
@@ -6787,9 +6799,11 @@ Object.subclass('Squeak.Primitives',
             global.SqueakFiles = {};
         var path = Squeak.splitFilePath(filename);
         if (!path.basename) return null;    // malformed filename
+
         // fetch or create directory entry
         var directory = Squeak.dirList(path.dirname, true);
-        if (!directory) return null;
+
+        if (!Squeak.isDirectory(path.dirname)) return null;
         var entry = directory[path.basename],
             contents = null;
         if (entry) {

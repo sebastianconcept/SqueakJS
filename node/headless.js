@@ -1059,8 +1059,6 @@ function checkExisting(file, options, ifExists, ifNotExists) {
             if (file.zip) processZip(file, options, ifExists);
             else ifExists();
         }, function onError() {
-            // if error, download it
-            Squeak.fileDelete(options.root + file.name);
             return ifNotExists();
         });
     } else {
@@ -1095,17 +1093,10 @@ function fetchFiles (files, options, thenDo) {
     // check if files exist locally and download if nessecary
     function getNextFile () {
         if (files.length === 0) return thenDo();
-        var file = files.shift(),
-            forceDownload = options.forceDownload || file.forceDownload;
-        if (forceDownload) downloadFile(file, options, getNextFile);
-        else checkExisting(file,options,
-            function ifExists() {
-                getNextFile();
-            },
-            function ifNotExists() {
-                loadFile(file, options, getNextFile);
-            });
+        var file = files.shift();
+        loadFile(file, options, getNextFile);
     }
+
     getNextFile();
 }
 
